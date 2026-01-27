@@ -1,0 +1,9 @@
+echo "Pre-Commit hook go brrr 🚀"
+
+lint-staged
+if [ $? -ne 0 ]; then
+  echo "Linting failed D-Dawg ❌☠️"
+fi
+
+echo "Pre-Commit hook done  ✅🚀"
+echo "OTSUKARE-SAMA-DESU 🙇‍♂️ ! Commit complete sir ! 🫡"
