@@ -1,0 +1,64 @@
+import { BaseCommand } from "@adonisjs/core/ace";
+import type { CommandOptions } from "@adonisjs/core/types/ace";
+import Library from "#models/library";
+import { jellyfinApiClient } from "#start/api-clients";
+import {
+  type JellyfinLibrary,
+  jellyfinLibrariesValidator,
+} from "#validators/jellyfin_library";
+
+export default class SyncLibraries extends BaseCommand {
+  static commandName = "sync:libraries";
+  static description = "Sync Jellyfin libraries to the database.";
+
+  static aliases = ["s:l"];
+
+  static options: CommandOptions = {
+    startApp: true,
+  };
+
+  private libraries: JellyfinLibrary[] = [];
+
+  async prepare() {
+    this.logger.info("Preparing the syncing of libraries…");
+    this.libraries = await jellyfinApiClient
+      .get("Library/VirtualFolders")
+      .json()
+      .then(jellyfinLibrariesValidator.validate);
+    this.logger.info(
+      `Found ${this.libraries.length} libraries in Jellyfin. Processing to cross-match now…`,
+    );
+  }
+
+  async run() {
+    const libraries = this.libraries.filter(
+      (l) => l.CollectionType !== "boxsets",
+    );
+    this.logger.info(
+      `Found ${libraries.length} effective libraries in Jellyfin. Moving onto the syncing…`,
+    );
+
+    for (const library of libraries) {
+      const found = await Library.findBy({ jellyfinId: library.ItemId });
+      if (found) {
+        this.logger.info(
+          `Library ${library.Name} is already in the database. Updating…`,
+        );
+        await found.merge({ name: library.Name }).save();
+      } else {
+        this.logger.info(
+          `Library ${library.Name} is not in the database. Creating…`,
+        );
+        await Library.create({
+          jellyfinId: library.ItemId,
+          name: library.Name,
+          type: library.CollectionType,
+        });
+      }
+    }
+  }
+
+  async completed() {
+    this.logger.info("Syncing libraries completed!");
+  }
+}
