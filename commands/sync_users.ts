@@ -27,7 +27,7 @@ export default class SyncUsers extends BaseCommand {
 
   async prepare() {
     this.logger.info("Preparing the syncing of users…");
-    [this.jellyfinUsers, this.jellyseerrUsers] = await Promise.all([
+    const res = await Promise.all([
       jellyfinApiClient
         .get("Users")
         .json()
@@ -37,6 +37,8 @@ export default class SyncUsers extends BaseCommand {
         .json()
         .then((d) => jellyseerrUsersValidator.validate(d.results)),
     ]);
+    this.jellyfinUsers = res[0];
+    this.jellyseerrUsers = res[1];
     this.logger.info(
       `Found ${this.jellyfinUsers.length} users in Jellyfin and ${this.jellyseerrUsers.length} users in Jellyseerr. Processing to cross-match now…`,
     );
