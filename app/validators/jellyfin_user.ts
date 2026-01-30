@@ -4,6 +4,7 @@ import type { Infer } from "@vinejs/vine/types";
 const jellyfinUser = vine.object({
   Id: vine.string(),
   Name: vine.string(),
+  LastActivityDate: vine.string().optional(),
   Policy: vine.object({
     IsAdministrator: vine.boolean(),
   }),

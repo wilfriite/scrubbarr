@@ -1,6 +1,7 @@
 import { BaseCommand } from "@adonisjs/core/ace";
 import logger from "@adonisjs/core/services/logger";
 import type { CommandOptions } from "@adonisjs/core/types/ace";
+import { DateTime } from "luxon";
 import User from "#models/user";
 import { jellyfinApiClient, jellyseerrApiClient } from "#start/api-clients";
 import {
@@ -67,11 +68,16 @@ export default class SyncUsers extends BaseCommand {
       logger.debug(`Syncing user ${jFinUser.Id} from Jellyfin to Jellyseerr…`);
       const found = await User.findBy({ jellyfinId: jFinUser.Id });
 
+      const lastActivityAt = jFinUser.LastActivityDate
+        ? DateTime.fromISO(jFinUser.LastActivityDate)
+        : null;
+
       const data = {
         jellyfinId: jFinUser.Id,
         jellyseerrId: jSeerrUser.id.toString(),
         username: jFinUser.Name,
         isAdmin: jFinUser.Policy.IsAdministrator,
+        lastActivityAt,
       };
       let newUser: User | null = null;
       if (found) {
