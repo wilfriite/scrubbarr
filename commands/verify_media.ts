@@ -35,7 +35,7 @@ export default class VerifyMedia extends BaseCommand {
 
   async prepare() {
     this.startTime = process.hrtime.bigint();
-    this.logger.info("Preparing to verify media…");
+    logger.info("Preparing to verify media…");
     const res = await Promise.all([
       Library.query().where({ isActive: true }),
       User.all(),
@@ -47,10 +47,10 @@ export default class VerifyMedia extends BaseCommand {
     );
 
     // Setting up my "favorites" set
-    this.logger.info("Setting up a cross-users 'favorites' set…");
+    logger.info("Setting up a cross-users 'favorites' set…");
     this.favoriteMedias = await this.getFavoriteMedias();
 
-    this.logger.info(
+    logger.info(
       `Found ${this.favoriteMedias.length} favorite medias in the database.`,
     );
   }
@@ -58,18 +58,18 @@ export default class VerifyMedia extends BaseCommand {
   async run() {
     let markedCount = 0;
     let alreadyMarkedCount = 0;
-    this.logger.info("Starting to verify media…");
+    logger.info("Starting to verify media…");
 
     const requests = await this.getAllRequests();
     const adminUser = await User.findByOrFail({ isAdmin: true });
     const todayAsDate = DateTime.now();
 
     for (const library of this.libraries) {
-      this.logger.info(
+      logger.info(
         "================================================================================",
       );
-      this.logger.info(`Scanning library: ${library.name}…`);
-      this.logger.info(
+      logger.info(`Scanning library: ${library.name}…`);
+      logger.info(
         "================================================================================",
       );
 
@@ -88,13 +88,13 @@ export default class VerifyMedia extends BaseCommand {
         // A. Sécurité TMDB
         const tmdbId = media.ProviderIds.Tmdb;
         if (!tmdbId) {
-          this.logger.warning(`Media ${media.Name} has no tmdbId. Skipping…`);
+          logger.warn(`Media ${media.Name} has no tmdbId. Skipping…`);
           continue;
         }
 
         // B. Critère VETO (Favoris globaux)
         if (this.favoriteMedias.includes(tmdbId)) {
-          this.logger.debug(
+          logger.debug(
             `Media ${media.Name} is protected by a favorite. Skipping…`,
           );
           continue;
@@ -105,7 +105,7 @@ export default class VerifyMedia extends BaseCommand {
         const diffDuration = todayAsDate.diff(createdAt, ["months", "days"]);
 
         if (diffDuration.as("days") < this.MAX_AGE_DAYS) {
-          this.logger.debug(
+          logger.debug(
             `Media ${media.Name} is too recent (${diffDuration.toHuman({ showZeros: false })}). Skipping…`,
           );
           continue;
@@ -127,13 +127,11 @@ export default class VerifyMedia extends BaseCommand {
           requester?.jellyfinId || adminUser.jellyfinId;
         const requesterName = requester?.username || "Admin";
 
-        this.logger.debug(`request: ${JSON.stringify(request)}`);
+        logger.debug(`request: ${JSON.stringify(request)}`);
 
-        this.logger.debug(`requester: ${JSON.stringify(requester)}`);
+        logger.debug(`requester: ${JSON.stringify(requester)}`);
 
-        this.logger.debug(
-          `mediaRequesterJellyfinId: ${mediaRequesterJellyfinId}`,
-        );
+        logger.debug(`mediaRequesterJellyfinId: ${mediaRequesterJellyfinId}`);
 
         // E. CHECK "PLAYED" (Requête ciblée)
         const mediaStateForOwner = await jellyfinApiClient
@@ -163,26 +161,26 @@ export default class VerifyMedia extends BaseCommand {
                 days: library.gracePeriodDays,
               }),
             });
-            this.logger.success(
+            logger.info(
               `[QUEUED] ${media.Name} (Requested by ${requesterName}). Deletion in ${library.gracePeriodDays} days.`,
             );
             markedCount++;
           } else {
             // Déjà en attente
-            this.logger.debug(
+            logger.info(
               `[ALREADY QUEUED] ${media.Name} (Expires on ${existingInQueue.deletionPlannedAt.toFormat("dd/MM/yyyy")})`,
             );
             alreadyMarkedCount++;
           }
         } else {
-          this.logger.debug(
+          logger.info(
             `Media ${media.Name} not yet played by owner ${requesterName}.`,
           );
         }
       }
     }
 
-    this.logger.info(
+    logger.info(
       `Done! ${markedCount} new medias added to the deletion queue. ${alreadyMarkedCount} medias already in the queue.`,
     );
   }
@@ -190,7 +188,7 @@ export default class VerifyMedia extends BaseCommand {
   async completed() {
     this.endTime = process.hrtime.bigint();
     const apiDuration = Number(this.endTime - this.startTime) / 1e6;
-    this.logger.info(`Took ${apiDuration} ms.`);
+    logger.info(`Took ${apiDuration} ms.`);
   }
 
   private async getFavoriteMedias() {

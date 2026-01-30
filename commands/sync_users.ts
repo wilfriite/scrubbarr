@@ -1,4 +1,5 @@
 import { BaseCommand } from "@adonisjs/core/ace";
+import logger from "@adonisjs/core/services/logger";
 import type { CommandOptions } from "@adonisjs/core/types/ace";
 import User from "#models/user";
 import { jellyfinApiClient, jellyseerrApiClient } from "#start/api-clients";
@@ -26,7 +27,7 @@ export default class SyncUsers extends BaseCommand {
   private jellyseerrUsers: JellyseerrUser[] = [];
 
   async prepare() {
-    this.logger.info("Preparing the syncing of users…");
+    logger.info("Preparing the syncing of users…");
     const res = await Promise.all([
       jellyfinApiClient
         .get("Users")
@@ -39,7 +40,7 @@ export default class SyncUsers extends BaseCommand {
     ]);
     this.jellyfinUsers = res[0];
     this.jellyseerrUsers = res[1];
-    this.logger.info(
+    logger.info(
       `Found ${this.jellyfinUsers.length} users in Jellyfin and ${this.jellyseerrUsers.length} users in Jellyseerr. Processing to cross-match now…`,
     );
   }
@@ -48,7 +49,7 @@ export default class SyncUsers extends BaseCommand {
     const linkedJellyseerrUsers = this.jellyseerrUsers.filter(
       (user) => user.jellyfinUserId,
     );
-    this.logger.info(
+    logger.info(
       `Found ${linkedJellyseerrUsers.length} users in Jellyseerr that are linked to Jellyfin. Moving onto the syncing…`,
     );
 
@@ -57,15 +58,13 @@ export default class SyncUsers extends BaseCommand {
         (u) => u.jellyfinUserId && u.jellyfinUserId === jFinUser.Id,
       );
       if (!jSeerrUser) {
-        this.logger.warning(
+        logger.warn(
           `User ${jFinUser.Id} is not linked to Jellyseerr. Skipping…`,
         );
         continue;
       }
-      this.logger.debug(JSON.stringify(jFinUser));
-      this.logger.debug(
-        `Syncing user ${jFinUser.Id} from Jellyfin to Jellyseerr…`,
-      );
+      logger.debug(JSON.stringify(jFinUser));
+      logger.debug(`Syncing user ${jFinUser.Id} from Jellyfin to Jellyseerr…`);
       const found = await User.findBy({ jellyfinId: jFinUser.Id });
 
       const data = {
@@ -76,24 +75,20 @@ export default class SyncUsers extends BaseCommand {
       };
       let newUser: User | null = null;
       if (found) {
-        this.logger.debug(
+        logger.debug(
           `User ${jFinUser.Id} is already in the database. Updating…`,
         );
         newUser = await found.merge(data).save();
       } else {
-        this.logger.debug(
-          `User ${jFinUser.Id} is not in the database. Creating…`,
-        );
+        logger.debug(`User ${jFinUser.Id} is not in the database. Creating…`);
         newUser = await User.create(data);
       }
 
-      this.logger.success(
-        `User ${newUser.username} has been synced to Jellyseerr!`,
-      );
+      logger.info(`User ${newUser.username} has been synced to Jellyseerr!`);
     }
   }
 
   async completed() {
-    this.logger.success("Syncing users completed!");
+    logger.info("Syncing users completed!");
   }
 }
