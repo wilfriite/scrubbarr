@@ -1,20 +1,19 @@
+import { inject } from "@adonisjs/core";
 import { BaseCommand } from "@adonisjs/core/ace";
+import logger from "@adonisjs/core/services/logger";
 import type { CommandOptions } from "@adonisjs/core/types/ace";
 import string from "@poppinss/utils/string";
 import { DateTime } from "luxon";
 import Library from "#models/library";
 import MediaQueue from "#models/media_queue";
 import User from "#models/user";
-import { jellyfinApiClient, jellyseerrApiClient } from "#start/api-clients";
-import {
-  jellyfinMediaValidator,
-  mediaUserDataValidator,
-} from "#validators/jellyfin_media";
-import {
-  type JellyseerrMedia,
-  jellyseerrMediasValidator,
-} from "#validators/jellyseerr_media";
+// biome-ignore lint/style/useImportType: Need the actual class for DI purposes
+import { JellyfinService } from "#services/jellyfin_service";
+// biome-ignore lint/style/useImportType: Need the actual class for DI purposes
+import { MediaCheckStrategy } from "#services/media_check/strategies/types";
+import env from "#start/env";
 
+// @inject()
 export default class VerifyMedia extends BaseCommand {
   static commandName = "verify:media";
   static description =
@@ -33,7 +32,8 @@ export default class VerifyMedia extends BaseCommand {
   private startTime: bigint = 0n;
   private endTime: bigint = 0n;
 
-  async prepare() {
+  @inject()
+  async prepare(jellyfinService: JellyfinService) {
     this.startTime = process.hrtime.bigint();
     logger.info("Preparing to verify media…");
     const res = await Promise.all([
@@ -42,26 +42,32 @@ export default class VerifyMedia extends BaseCommand {
     ]);
     this.libraries = res[0];
     this.users = res[1];
-    this.logger.info(
+    logger.info(
       `Found ${this.libraries.length} ${string.pluralize("library", this.libraries.length)} and ${this.users.length} ${string.pluralize("user", this.users.length)} in the database. Processing to cross-match now…`,
     );
 
     // Setting up my "favorites" set
     logger.info("Setting up a cross-users 'favorites' set…");
-    this.favoriteMedias = await this.getFavoriteMedias();
+    this.favoriteMedias = await jellyfinService.getAllUsersFavoriteMedias(
+      this.users,
+    );
 
     logger.info(
       `Found ${this.favoriteMedias.length} favorite medias in the database.`,
     );
   }
 
-  async run() {
+  @inject()
+  async run(
+    jellyfinService: JellyfinService,
+    mediaCheckStrategy: MediaCheckStrategy,
+  ) {
     let markedCount = 0;
     let alreadyMarkedCount = 0;
-    logger.info("Starting to verify media…");
+    logger.info(
+      `Starting to verify media using the '${env.get("MEDIA_CHECK_STRATEGY")} must see' strategy…`,
+    );
 
-    const requests = await this.getAllRequests();
-    const adminUser = await User.findByOrFail({ isAdmin: true });
     const todayAsDate = DateTime.now();
 
     for (const library of this.libraries) {
@@ -73,16 +79,9 @@ export default class VerifyMedia extends BaseCommand {
         "================================================================================",
       );
 
-      const medias = await jellyfinApiClient
-        .get(`Items`, {
-          searchParams: {
-            fields: "ProviderIds,UserData,DateCreated",
-            parentId: library.jellyfinId,
-          },
-        })
-        .json()
-        .then((d) => d.Items)
-        .then(jellyfinMediaValidator.validate);
+      const medias = await jellyfinService.getMediasForLibrary(
+        library.jellyfinId,
+      );
 
       for (const media of medias) {
         // A. Sécurité TMDB
@@ -111,37 +110,12 @@ export default class VerifyMedia extends BaseCommand {
           continue;
         }
 
-        // D. IDENTIFICATION DU PROPRIÉTAIRE
-        const request = requests.find(
-          (r) => r.media.tmdbId && String(r.media.tmdbId) === String(tmdbId),
-        );
+        const { hasBeenPlayed, by } = await mediaCheckStrategy.hasBeenPlayed({
+          id: media.Id,
+          tmdbId: tmdbId,
+        });
 
-        // On cherche l'utilisateur correspondant dans notre liste locale
-        const requester = request?.requestedBy.jellyfinUserId
-          ? this.users.find(
-              (u) => u.jellyfinId === request.requestedBy.jellyfinUserId,
-            ) // don't use request.requestedBy.jellyfinUserId in case it's not set or obsolete
-          : null;
-
-        const mediaRequesterJellyfinId =
-          requester?.jellyfinId || adminUser.jellyfinId;
-        const requesterName = requester?.username || "Admin";
-
-        logger.debug(`request: ${JSON.stringify(request)}`);
-
-        logger.debug(`requester: ${JSON.stringify(requester)}`);
-
-        logger.debug(`mediaRequesterJellyfinId: ${mediaRequesterJellyfinId}`);
-
-        // E. CHECK "PLAYED" (Requête ciblée)
-        const mediaStateForOwner = await jellyfinApiClient
-          .get(`UserItems/${media.Id}/UserData`, {
-            searchParams: { userId: mediaRequesterJellyfinId },
-          })
-          .json()
-          .then(mediaUserDataValidator.validate);
-
-        if (mediaStateForOwner.Played) {
+        if (hasBeenPlayed) {
           // --- LOGIQUE DE PERSISTENCE ---
 
           // On vérifie si le média est DÉJÀ dans la file d'attente (non supprimé)
@@ -162,7 +136,7 @@ export default class VerifyMedia extends BaseCommand {
               }),
             });
             logger.info(
-              `[QUEUED] ${media.Name} (Requested by ${requesterName}). Deletion in ${library.gracePeriodDays} days.`,
+              `[QUEUED] ${media.Name} (Requested by ${by}). Deletion in ${library.gracePeriodDays} days.`,
             );
             markedCount++;
           } else {
@@ -173,9 +147,7 @@ export default class VerifyMedia extends BaseCommand {
             alreadyMarkedCount++;
           }
         } else {
-          logger.info(
-            `Media ${media.Name} not yet played by owner ${requesterName}.`,
-          );
+          logger.info(`Media ${media.Name} not yet played by owner ${by}.`);
         }
       }
     }
@@ -189,76 +161,5 @@ export default class VerifyMedia extends BaseCommand {
     this.endTime = process.hrtime.bigint();
     const apiDuration = Number(this.endTime - this.startTime) / 1e6;
     logger.info(`Took ${apiDuration} ms.`);
-  }
-
-  private async getFavoriteMedias() {
-    const users = await User.all();
-    let favMeds: string[] = [];
-
-    for (const user of users) {
-      const favoriteMediasInLibrary = await jellyfinApiClient
-        .get(`Users/${user.jellyfinId}/Items`, {
-          searchParams: {
-            Filters: "IsFavorite",
-            fields: "ProviderIds,UserData,DateCreated",
-            Recursive: true,
-          },
-        })
-        .json()
-        .then((d) => d.Items)
-        .then(jellyfinMediaValidator.validate);
-
-      this.logger.info(
-        `Found ${favoriteMediasInLibrary.length} favorite medias for user ${user.username}.`,
-      );
-      for (const media of favoriteMediasInLibrary) {
-        if (
-          media.ProviderIds.Tmdb &&
-          favMeds.indexOf(media.ProviderIds.Tmdb) === -1
-        ) {
-          favMeds = [...favMeds, media.ProviderIds.Tmdb];
-        }
-      }
-    }
-    this.logger.info(JSON.stringify(favMeds));
-    return [...favMeds];
-  }
-
-  private async getAllRequests() {
-    let mediaRequests: JellyseerrMedia[] = [];
-    let currentPage = 1;
-    let hasNextPage = true;
-    let totalPages = 1;
-
-    while (hasNextPage) {
-      try {
-        // On ajoute le paramètre de page à l'URL
-        const data = await jellyseerrApiClient
-          .get("request", {
-            searchParams: {
-              skip: 10 * (currentPage - 1),
-              filter: "available",
-            },
-          })
-          .json();
-
-        totalPages = data.pageInfo.pages;
-        this.logger.info(`Page ${currentPage} of ${totalPages}`);
-
-        const medias = await jellyseerrMediasValidator.validate(data.results);
-        mediaRequests = [...mediaRequests, ...medias];
-
-        if (data.pageInfo.page < totalPages) {
-          currentPage++;
-        } else {
-          hasNextPage = false;
-        }
-      } catch (error) {
-        this.logger.error("Erreur lors de la récupération :", error);
-        hasNextPage = false; // On arrête la boucle en cas d'erreur
-      }
-    }
-
-    return mediaRequests;
   }
 }
