@@ -48,4 +48,9 @@ export default await Env.create(new URL("../", import.meta.url), {
 
   JELLYSEERR_API_KEY: Env.schema.string(),
   JELLYSEERR_URL: Env.schema.string({ format: "url" }),
+
+  MEDIA_CHECK_STRATEGY: Env.schema.enum.optional([
+    "everyone",
+    "requester",
+  ] as const),
 });
