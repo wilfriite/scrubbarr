@@ -69,7 +69,6 @@ export default defineConfig({
       file: () => import("#start/scheduler"),
       environment: ["console", "web"],
     },
-    // () => import("#start/tee"),
   ],
 
   /*
