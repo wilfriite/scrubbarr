@@ -57,13 +57,13 @@ export default class SyncUsers extends BaseCommand {
         (u) => u.jellyfinUserId && u.jellyfinUserId === jFinUser.Id,
       );
       if (!jSeerrUser) {
-        this.logger.info(
+        this.logger.warning(
           `User ${jFinUser.Id} is not linked to Jellyseerr. Skipping…`,
         );
         continue;
       }
-      this.logger.info(JSON.stringify(jFinUser));
-      this.logger.info(
+      this.logger.debug(JSON.stringify(jFinUser));
+      this.logger.debug(
         `Syncing user ${jFinUser.Id} from Jellyfin to Jellyseerr…`,
       );
       const found = await User.findBy({ jellyfinId: jFinUser.Id });
@@ -76,24 +76,24 @@ export default class SyncUsers extends BaseCommand {
       };
       let newUser: User | null = null;
       if (found) {
-        this.logger.info(
+        this.logger.debug(
           `User ${jFinUser.Id} is already in the database. Updating…`,
         );
         newUser = await found.merge(data).save();
       } else {
-        this.logger.info(
+        this.logger.debug(
           `User ${jFinUser.Id} is not in the database. Creating…`,
         );
         newUser = await User.create(data);
       }
 
-      this.logger.info(
+      this.logger.success(
         `User ${newUser.username} has been synced to Jellyseerr!`,
       );
     }
   }
 
   async completed() {
-    this.logger.info("Syncing users completed!");
+    this.logger.success("Syncing users completed!");
   }
 }

@@ -56,6 +56,9 @@
   "dependencies": {
     "@adonisjs/core": "^6.18.0",
     "@adonisjs/lucid": "^21.8.2",
+    "@poppinss/utils": "^6.10.1",
+    "@vinejs/vine": "^4.2.0",
+    "ky": "^1.14.3",
     "luxon": "^3.7.2",
     "pg": "^8.17.2",
     "reflect-metadata": "^0.2.2"
