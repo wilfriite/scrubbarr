@@ -2,6 +2,14 @@ import type User from "#models/user";
 import type { JellyfinService } from "#services/jellyfin_service";
 import { MediaCheckStrategy } from "./types.js";
 
+/**
+ * One of the strategies to judge if a media has been played.
+ * This one checks if every user present on Jellyfin has seen the media.
+ * If only one has not seen the media, it's considered as not played and can't be a candidate for deletion.
+ *
+ * @param jellyfinService The service to interact with Jellyfin
+ * @param users The list of users to check (all of them for this strategy)
+ */
 export class EveryoneMustSeeStrategy extends MediaCheckStrategy {
   constructor(
     private jellyfinService: JellyfinService,

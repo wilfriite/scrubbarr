@@ -4,6 +4,22 @@ import type { JellyfinService } from "#services/jellyfin_service";
 import type { JellyseerrMedia } from "#validators/jellyseerr_media";
 import { MediaCheckStrategy } from "./types.js";
 
+/**
+ * One of the strategies to judge if a media has been played.
+ * This one check if only the requester of the media has seen the media (requester referring to the user who requested the media on Jellyseerr, this requester might not be set for a media).
+ * There are several reasons that may explain the lack of requester :
+ *
+ * - The media has been requested directly on the corresponding *arr application,
+ * - The requester has no Jellyfin account : something connected to Jellyseerr instead of Jellyfin (a Suggestarr (an app to automatically suggest medias to download) for example)
+ *
+ * If, for any reason, there is no requester, the Jellyfin server administrator is considered the requester (since a server must necessarily have an administrator).
+ *
+ * If the now set requester has not seen the media, it's considered as not played and can't be a candidate for deletion.
+ *
+ * @param jellyfinService The service to interact with Jellyfin
+ * @param users The list of users to check (all of them for this strategy)
+ * @param requests The list of media requests in which we need to find the request for the media to check
+ */
 export class OnlyRequesterMustSeeStrategy extends MediaCheckStrategy {
   constructor(
     private jellyfinService: JellyfinService,
