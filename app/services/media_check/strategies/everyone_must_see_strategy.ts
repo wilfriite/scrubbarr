@@ -1,6 +1,10 @@
 import type User from "#models/user";
 import type { JellyfinService } from "#services/jellyfin_service";
-import { MediaCheckStrategy } from "./types.js";
+import {
+  type MediaCheckResult,
+  MediaCheckStrategy,
+  type MediaInfo,
+} from "./types.js";
 
 /**
  * One of the strategies to judge if a media has been played.
@@ -18,10 +22,7 @@ export class EveryoneMustSeeStrategy extends MediaCheckStrategy {
     super();
   }
 
-  async hasBeenPlayed(media: {
-    id: string;
-    tmdbId: string;
-  }): Promise<{ hasBeenPlayed: boolean; by: string }> {
+  async shouldKeep(media: MediaInfo): Promise<MediaCheckResult> {
     // const users = await User.all();
     // Si UN SEUL utilisateur n'a pas vu le film, on renvoie false
     for (const user of this.users) {
@@ -30,8 +31,12 @@ export class EveryoneMustSeeStrategy extends MediaCheckStrategy {
         user.jellyfinId,
       );
 
-      if (!userData.Played) return { hasBeenPlayed: false, by: user.username };
+      if (!userData.Played)
+        return {
+          shouldKeep: false,
+          reason: `${user.username} has not played the media yet.`,
+        };
     }
-    return { hasBeenPlayed: true, by: "Everyone" };
+    return { shouldKeep: true, reason: null };
   }
 }

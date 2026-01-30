@@ -110,12 +110,12 @@ export default class VerifyMedia extends BaseCommand {
           continue;
         }
 
-        const { hasBeenPlayed, by } = await mediaCheckStrategy.hasBeenPlayed({
+        const { shouldKeep, reason } = await mediaCheckStrategy.shouldKeep({
           id: media.Id,
           tmdbId: tmdbId,
         });
 
-        if (hasBeenPlayed) {
+        if (shouldKeep) {
           // --- LOGIQUE DE PERSISTENCE ---
 
           // On vérifie si le média est DÉJÀ dans la file d'attente (non supprimé)
@@ -136,7 +136,7 @@ export default class VerifyMedia extends BaseCommand {
               }),
             });
             logger.info(
-              `[QUEUED] ${media.Name} (Requested by ${by}). Deletion in ${library.gracePeriodDays} days.`,
+              `[QUEUED] ${media.Name}. Deletion in ${library.gracePeriodDays} days.`,
             );
             markedCount++;
           } else {
@@ -147,7 +147,7 @@ export default class VerifyMedia extends BaseCommand {
             alreadyMarkedCount++;
           }
         } else {
-          logger.info(`Media ${media.Name} not yet played by owner ${by}.`);
+          logger.info(reason);
         }
       }
     }

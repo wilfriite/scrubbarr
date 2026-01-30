@@ -2,7 +2,11 @@ import { assert } from "@poppinss/utils/assert";
 import type User from "#models/user";
 import type { JellyfinService } from "#services/jellyfin_service";
 import type { JellyseerrMedia } from "#validators/jellyseerr_media";
-import { MediaCheckStrategy } from "./types.js";
+import {
+  type MediaCheckResult,
+  MediaCheckStrategy,
+  type MediaInfo,
+} from "./types.js";
 
 /**
  * One of the strategies to judge if a media has been played.
@@ -29,10 +33,7 @@ export class OnlyRequesterMustSeeStrategy extends MediaCheckStrategy {
     super();
   }
 
-  async hasBeenPlayed(media: {
-    id: string;
-    tmdbId: string;
-  }): Promise<{ hasBeenPlayed: boolean; by: string }> {
+  async shouldKeep(media: MediaInfo): Promise<MediaCheckResult> {
     const adminUser = this.users.find((u) => u.isAdmin);
     assert(adminUser, "Admin user not found");
 
@@ -57,6 +58,11 @@ export class OnlyRequesterMustSeeStrategy extends MediaCheckStrategy {
       this.users.find((u) => u.jellyfinId === targetUserId)?.username ||
       "Admin";
 
-    return { hasBeenPlayed: userData.Played, by: username };
+    return {
+      shouldKeep: userData.Played,
+      reason: userData.Played
+        ? null
+        : `Owner ${username} has not played the media yet.`,
+    };
   }
 }

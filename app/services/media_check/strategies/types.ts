@@ -1,4 +1,5 @@
-type MediaInfo = { id: string; tmdbId: string };
+export type MediaInfo = { id: string; tmdbId: string };
+export type MediaCheckResult = { shouldKeep: boolean; reason: string | null };
 
 /**
  * The base class for all strategies to judge if a media has been played.
@@ -11,7 +12,5 @@ export abstract class MediaCheckStrategy {
    * @returns hasBeenPlayed: true if at least one user has seen the media, false otherwise
    * @returns by: the username of the user who has seen the media
    */
-  abstract hasBeenPlayed(
-    media: MediaInfo,
-  ): Promise<{ hasBeenPlayed: boolean; by: string }>;
+  abstract shouldKeep(media: MediaInfo): Promise<MediaCheckResult>;
 }
