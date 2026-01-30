@@ -33,10 +33,10 @@ export class EveryoneMustSeeStrategy extends MediaCheckStrategy {
 
       if (!userData.Played)
         return {
-          shouldKeep: false,
+          shouldKeep: true,
           reason: `${user.username} has not played the media yet.`,
         };
     }
-    return { shouldKeep: true, reason: null };
+    return { shouldKeep: false, reason: null };
   }
 }

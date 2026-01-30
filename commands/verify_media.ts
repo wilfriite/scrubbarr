@@ -113,9 +113,10 @@ export default class VerifyMedia extends BaseCommand {
         const { shouldKeep, reason } = await mediaCheckStrategy.shouldKeep({
           id: media.Id,
           tmdbId: tmdbId,
+          mediaType: library.type,
         });
 
-        if (shouldKeep) {
+        if (!shouldKeep) {
           // --- LOGIQUE DE PERSISTENCE ---
 
           // On vérifie si le média est DÉJÀ dans la file d'attente (non supprimé)

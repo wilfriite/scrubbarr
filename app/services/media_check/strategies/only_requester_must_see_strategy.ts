@@ -59,7 +59,7 @@ export class OnlyRequesterMustSeeStrategy extends MediaCheckStrategy {
       "Admin";
 
     return {
-      shouldKeep: userData.Played,
+      shouldKeep: !userData.Played,
       reason: userData.Played
         ? null
         : `Owner ${username} has not played the media yet.`,
