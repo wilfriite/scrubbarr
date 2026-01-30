@@ -26,7 +26,7 @@ export default class VerifyMedia extends BaseCommand {
 
   private libraries: Library[] = [];
   private users: User[] = [];
-  private favoriteMedias: string[] = [];
+  private favoriteMedias: Set<string> = new Set();
   private readonly MAX_AGE_DAYS = 28;
 
   private startTime: bigint = 0n;
@@ -48,12 +48,12 @@ export default class VerifyMedia extends BaseCommand {
 
     // Setting up my "favorites" set
     logger.info("Setting up a cross-users 'favorites' set…");
-    this.favoriteMedias = await jellyfinService.getAllUsersFavoriteMedias(
-      this.users,
-    );
+    this.favoriteMedias = await jellyfinService
+      .getAllUsersFavoriteMedias(this.users)
+      .then((d) => new Set(d));
 
     logger.info(
-      `Found ${this.favoriteMedias.length} favorite medias in the database.`,
+      `Found ${this.favoriteMedias.size} favorite medias in the database.`,
     );
   }
 
@@ -92,7 +92,7 @@ export default class VerifyMedia extends BaseCommand {
         }
 
         // B. Critère VETO (Favoris globaux)
-        if (this.favoriteMedias.includes(tmdbId)) {
+        if (this.favoriteMedias.has(tmdbId)) {
           logger.debug(
             `Media ${media.Name} is protected by a favorite. Skipping…`,
           );
