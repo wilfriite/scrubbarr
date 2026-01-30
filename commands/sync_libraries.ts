@@ -33,7 +33,7 @@ export default class SyncLibraries extends BaseCommand {
 
   async run() {
     const libraries = this.libraries.filter(
-      (l) => l.CollectionType !== "boxsets",
+      (l) => l.CollectionType !== "boxsets", // Keep boxsets here cause we need to filter them out (API sends them too)
     );
     logger.info(
       `Found ${libraries.length} effective libraries in Jellyfin. Moving onto the syncing…`,
@@ -53,7 +53,7 @@ export default class SyncLibraries extends BaseCommand {
         await Library.create({
           jellyfinId: library.ItemId,
           name: library.Name,
-          type: library.CollectionType,
+          type: library.CollectionType as "movies" | "tvshows",
         });
       }
     }

@@ -5,7 +5,7 @@ import { LibraryType } from "#models/library";
 const jellyfinLibrary = vine.object({
   ItemId: vine.string(),
   Name: vine.string(),
-  CollectionType: vine.enum(Object.values(LibraryType)),
+  CollectionType: vine.enum([...Object.values(LibraryType), "boxsets"]),
 });
 
 const jellyfinLibraries = vine.array(jellyfinLibrary);
