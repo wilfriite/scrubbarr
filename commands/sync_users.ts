@@ -47,9 +47,19 @@ export default class SyncUsers extends BaseCommand {
   }
 
   async run() {
-    const linkedJellyseerrUsers = this.jellyseerrUsers.filter(
-      (user) => user.jellyfinUserId,
-    );
+    const existingJellyfinIds = new Set(this.jellyfinUsers.map((u) => u.Id));
+
+    const linkedJellyseerrUsers = this.jellyseerrUsers.flatMap((user) => {
+      if (!user.jellyfinUserId || !existingJellyfinIds.has(user.jellyfinUserId))
+        return [];
+
+      return [
+        {
+          ...user,
+          jellyfinUserId: user.jellyfinUserId,
+        },
+      ];
+    });
     logger.info(
       `Found ${linkedJellyseerrUsers.length} users in Jellyseerr that are linked to Jellyfin. Moving onto the syncing…`,
     );
