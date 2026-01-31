@@ -48,9 +48,9 @@ export default class VerifyMedia extends BaseCommand {
 
     // Setting up my "favorites" set
     logger.info("Setting up a cross-users 'favorites' set…");
-    this.favoriteMedias = await jellyfinService
-      .getAllUsersFavoriteMedias(this.users)
-      .then((d) => new Set(d));
+    this.favoriteMedias = await jellyfinService.getAllUsersFavoriteMedias(
+      this.users,
+    );
 
     logger.info(
       `Found ${this.favoriteMedias.size} favorite medias in the database.`,

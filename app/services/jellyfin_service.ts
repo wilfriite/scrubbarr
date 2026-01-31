@@ -30,7 +30,7 @@ export class JellyfinService {
   }
 
   async getAllUsersFavoriteMedias(users: User[]) {
-    let favMeds: string[] = [];
+    const favMeds = new Set<string>();
 
     for (const user of users) {
       const favoriteMediasInLibrary = await jellyfinApiClient
@@ -49,15 +49,12 @@ export class JellyfinService {
         `Found ${favoriteMediasInLibrary.length} favorite medias for user ${user.username}.`,
       );
       for (const media of favoriteMediasInLibrary) {
-        if (
-          media.ProviderIds.Tmdb &&
-          favMeds.indexOf(media.ProviderIds.Tmdb) === -1
-        ) {
-          favMeds = [...favMeds, media.ProviderIds.Tmdb];
+        if (media.ProviderIds.Tmdb) {
+          favMeds.add(media.ProviderIds.Tmdb);
         }
       }
     }
-    logger.info(JSON.stringify(favMeds));
-    return [...favMeds];
+    logger.info(JSON.stringify(favMeds.values().toArray()));
+    return favMeds;
   }
 }
