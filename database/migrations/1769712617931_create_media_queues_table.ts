@@ -15,13 +15,10 @@ export default class extends BaseSchema {
       // État du processus
       // On utilise check() pour s'assurer que seules ces valeurs sont acceptées
       table
-        .enum("status", Object.values(MediaQueueStatus), {
-          useNative: true,
-          enumName: "media_status",
-          existingType: true,
-        })
+        .string("status")
         .defaultTo(MediaQueueStatus.PENDING)
-        .notNullable();
+        .notNullable()
+        .checkIn(Object.values(MediaQueueStatus));
 
       table.integer("library_id").notNullable();
       table

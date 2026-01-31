@@ -9,13 +9,7 @@ export default class extends BaseSchema {
       table.increments("id");
       table.string("jellyfin_id").unique().notNullable();
       table.string("name").notNullable();
-      table
-        .enum("type", Object.values(LibraryType), {
-          useNative: true,
-          enumName: "library_type",
-          existingType: true,
-        })
-        .notNullable();
+      table.string("type").notNullable().checkIn(Object.values(LibraryType));
       table.integer("grace_period_days").defaultTo(30);
       table.boolean("is_active").defaultTo(true);
       table.timestamps(true);
