@@ -22,6 +22,8 @@ export class EveryoneMustSeeStrategy extends MediaCheckStrategy {
     super();
   }
 
+  readonly name = "EVERYONE_MUST_SEE";
+
   async shouldKeep(media: MediaInfo): Promise<MediaCheckResult> {
     // const users = await User.all();
     // Si UN SEUL utilisateur n'a pas vu le film, on renvoie false

@@ -33,6 +33,8 @@ export class OnlyRequesterMustSeeStrategy extends MediaCheckStrategy {
     super();
   }
 
+  readonly name = "ONLY_REQUESTER_MUST_SEE";
+
   async shouldKeep(media: MediaInfo): Promise<MediaCheckResult> {
     const adminUser = this.users.find((u) => u.isAdmin);
     assert(adminUser, "Admin user not found");

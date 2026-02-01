@@ -131,7 +131,7 @@ export default class VerifyMedia extends BaseCommand {
               tmdbId: tmdbId,
               name: media.Name,
               libraryId: library.id,
-              status: "PENDING",
+              strategyName: mediaCheckStrategy.name,
               deletionPlannedAt: DateTime.now().plus({
                 days: library.gracePeriodDays,
               }),

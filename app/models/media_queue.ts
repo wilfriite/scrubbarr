@@ -3,7 +3,6 @@ import type { BelongsTo } from "@adonisjs/lucid/types/relations";
 import type { DateTime } from "luxon";
 import Library from "./library.js";
 
-// On ajoute quelques champs pour être serein
 export default class MediaQueue extends BaseModel {
   @column({ isPrimary: true })
   declare id: number;
@@ -19,6 +18,9 @@ export default class MediaQueue extends BaseModel {
 
   @column()
   declare libraryId: number;
+
+  @column()
+  declare strategyName: string;
 
   @column.date({ autoCreate: true })
   declare markedAt: DateTime;

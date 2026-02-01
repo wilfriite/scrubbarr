@@ -13,6 +13,10 @@ export type MediaCheckResult = { shouldKeep: boolean; reason: string | null };
  */
 export abstract class MediaCheckStrategy {
   /**
+   * The name of the strategy. Helps to identify the strategy.
+   */
+  abstract readonly name: string;
+  /**
    * Check if a media has been played by at least one user.
    *
    * @param media The media to check against a specified strategy
