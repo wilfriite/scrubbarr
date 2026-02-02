@@ -5,6 +5,7 @@ import {
   jellyfinMediaValidator,
   mediaUserDataValidator,
 } from "#validators/jellyfin_media";
+import { jellyfinSessionValidator } from "#validators/jellyfin_session";
 
 export class JellyfinService {
   async getMediasForLibrary(libraryId: string) {
@@ -56,5 +57,37 @@ export class JellyfinService {
     }
     logger.info(JSON.stringify(favMeds.values().toArray()));
     return favMeds;
+  }
+
+  async getCurrentlyPlayingMediaIds(): Promise<Set<string>> {
+    try {
+      const sessions = await jellyfinApiClient
+        .get("Sessions")
+        .json()
+        .then(jellyfinSessionValidator.validate);
+
+      const blockedIds = new Set<string>();
+
+      for (const session of sessions) {
+        const item = session.NowPlayingItem;
+
+        // Ignore if no id or unknown data type
+        if (!item || !("Id" in item)) continue;
+
+        blockedIds.add(item.Id);
+
+        // Si c'est un épisode, on ajoute aussi l'ID de la série
+        if ("Type" in item && item.Type === "Episode" && "SeriesId" in item) {
+          blockedIds.add(item.SeriesId);
+        }
+      }
+
+      return blockedIds;
+    } catch (error) {
+      logger.error("Failed to fetch Jellyfin sessions:");
+      logger.error(error);
+      // Log l'erreur (Vine error ou Axios error)
+      return new Set();
+    }
   }
 }
