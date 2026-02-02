@@ -16,9 +16,9 @@ The app uses a 3-step process to determine if a media item is eligible for delet
 
 3. Check a media against the **strategy selected by the user** (see below). Each strategy uses its own logic to determine if a media is eligible for deletion based on the state of the media (if it has been watched by a specific user, if it has been played a certain amount of times, etc.)
 
-### Currently Implemented Strategies
+## Currently Implemented Strategies
 
-**1. "Only Requester must see" Strategy**
+### **1. "Only Requester must see" Strategy**
 
 **Description**: Focuses on the "Owner" (or "Requester" as called in this context) of the media.
 
@@ -28,7 +28,7 @@ The app uses a 3-step process to determine if a media item is eligible for delet
 
 **Best For**: Private servers where users are responsible for their own requests.
 
-**2. "Everyone must see" Strategy** (Status: implemented)
+### **2. "Everyone must see" Strategy**
 
 **Internal Name**: EveryoneMustSeeStrategy
 
@@ -44,7 +44,7 @@ The app uses a 3-step process to determine if a media item is eligible for delet
 
 The following strategies are proposed to handle more complex social dynamics or storage constraints.
 
-**3. "Active Users Only must see" Strategy** (Status: Proposed)
+### **3. "Active Users Only must see" Strategy**
 
 **Concept**: A variation of the "Everyone" strategy that ignores "ghost" users.
 
@@ -53,7 +53,7 @@ The following strategies are proposed to handle more complex social dynamics or 
 **Pros**: Prevents an inactive friend's account from blocking the cleanup of the entire server.
 
 
-**4. "Popularity Threshold" Strategy** (Status: Proposed)
+### **4. "Popularity Threshold" Strategy**
 
 Concept: Deletion based on democratic consensus rather than unanimity.
 
@@ -64,7 +64,7 @@ Verdict: Eligible for deletion if the ratio exceeds a configurable threshold (e.
 Pros: Highly efficient for large servers where it is unlikely that literally everyone will watch every item.
 
 
-**5. "Time Limited Retention" Strategy** (Status: Proposed)
+### **5. "Time Limited Retention" Strategy**
 
 Concept: Fixed-term shelf life, regardless of watch status.
 
