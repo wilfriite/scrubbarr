@@ -1,5 +1,4 @@
 import { BaseSchema } from "@adonisjs/lucid/schema";
-import { MediaQueueStatus } from "#models/media_queue";
 
 export default class extends BaseSchema {
   protected tableName = "media_queues";
@@ -12,23 +11,17 @@ export default class extends BaseSchema {
       table.string("tmdb_id").notNullable().unique();
       table.string("name").notNullable();
 
-      // État du processus
-      // On utilise check() pour s'assurer que seules ces valeurs sont acceptées
       table
-        .string("status")
-        .defaultTo(MediaQueueStatus.PENDING)
-        .notNullable()
-        .checkIn(Object.values(MediaQueueStatus));
-
-      table.integer("library_id").notNullable();
-      table
-        .foreign("library_id")
-        .references("libraries.id")
-        .onDelete("CASCADE");
+        .integer("library_id")
+        .unsigned()
+        .references("id")
+        .inTable("libraries")
+        .onDelete("SET NULL") // In case the library is deleted, we'd like to keep the queue item
+        .nullable();
 
       table.timestamp("deletion_planned_at").notNullable();
       table.timestamp("marked_at").notNullable();
-      table.timestamp("updated_at").nullable();
+      table.timestamp("updated_at").notNullable();
     });
   }
 

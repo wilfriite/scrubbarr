@@ -121,7 +121,6 @@ export default class VerifyMedia extends BaseCommand {
           // On vérifie si le média est DÉJÀ dans la file d'attente (non supprimé)
           const existingInQueue = await MediaQueue.query()
             .where("tmdbId", tmdbId)
-            .whereNot("status", "DELETED")
             .first();
 
           if (!existingInQueue) {
@@ -129,6 +128,7 @@ export default class VerifyMedia extends BaseCommand {
             await MediaQueue.create({
               tmdbId: tmdbId,
               name: media.Name,
+              jellyfinId: media.Id,
               libraryId: library.id,
               strategyName: mediaCheckStrategy.name,
               deletionPlannedAt: DateTime.now().plus({

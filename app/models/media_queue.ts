@@ -11,6 +11,9 @@ export default class MediaQueue extends BaseModel {
   declare tmdbId: string;
 
   @column()
+  declare jellyfinId: string;
+
+  @column()
   declare name: string;
 
   @belongsTo(() => Library)
@@ -25,18 +28,9 @@ export default class MediaQueue extends BaseModel {
   @column.date({ autoCreate: true })
   declare markedAt: DateTime;
 
-  @column.dateTime()
-  declare updatedAt: DateTime | null;
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime;
 
   @column.date()
   declare deletionPlannedAt: DateTime;
-
-  @column()
-  declare status: (typeof MediaQueueStatus)[keyof typeof MediaQueueStatus];
 }
-
-export const MediaQueueStatus = {
-  PENDING: "PENDING",
-  DELETED: "DELETED",
-  CANCELLED: "CANCELLED",
-} as const;
