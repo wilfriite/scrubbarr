@@ -13,6 +13,13 @@ import { JellyfinService } from "#services/jellyfin_service";
 import { MediaCheckStrategy } from "#services/media_check/strategies/types";
 import env from "#start/env";
 
+/**
+ * This command, with the help of our strategies, will check if a media is eligible for deletion.
+ * It does not delete the media, but only marks it as such using several conditions :
+ * - The media is a favorite of someone
+ * - The age of the media
+ * - A "strategy", a logic used to judge if a media has been played, is applied to each media. (See the "app/services/media_check/strategies" folder)
+ */
 export default class VerifyMedia extends BaseCommand {
   static commandName = "verify:media";
   static description =

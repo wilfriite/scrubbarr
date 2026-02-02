@@ -13,6 +13,10 @@ import {
   jellyseerrUsersValidator,
 } from "#validators/jellyseerr_user";
 
+/**
+ * This command will sync the users from Jellyfin to the database.
+ * It only syncs the users that are linked to Jellyseerr (for now).
+ */
 export default class SyncUsers extends BaseCommand {
   static commandName = "sync:users";
   static description =

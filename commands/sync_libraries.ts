@@ -8,6 +8,9 @@ import {
   jellyfinLibrariesValidator,
 } from "#validators/jellyfin_library";
 
+/**
+ * This command will sync the libraries from Jellyfin to the database.
+ */
 export default class SyncLibraries extends BaseCommand {
   static commandName = "sync:libraries";
   static description = "Sync Jellyfin libraries to the database.";
