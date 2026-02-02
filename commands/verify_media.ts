@@ -13,7 +13,6 @@ import { JellyfinService } from "#services/jellyfin_service";
 import { MediaCheckStrategy } from "#services/media_check/strategies/types";
 import env from "#start/env";
 
-// @inject()
 export default class VerifyMedia extends BaseCommand {
   static commandName = "verify:media";
   static description =
