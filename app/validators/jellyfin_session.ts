@@ -16,7 +16,6 @@ const episodeItemSchema = vine.object({
   Name: vine.string(),
   Type: vine.literal("Episode"),
   SeriesId: vine.string(),
-  s,
 });
 
 export type EpisodeItem = Infer<typeof episodeItemSchema>;
