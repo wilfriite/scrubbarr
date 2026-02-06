@@ -14,6 +14,7 @@ const jellyfinMedia = vine.object({
   ProviderIds: vine.object({
     Tmdb: vine.string().optional(),
     Imdb: vine.string().optional(),
+    Tvdb: vine.string().optional(),
   }),
 });
 

@@ -10,6 +10,7 @@ const jellyseerrMedia = vine.object({
   media: vine.object({
     jellyfinMediaId: vine.string().nullable(),
     tmdbId: vine.number().nullable().transform(String),
+    tvdbId: vine.number().nullable().transform(String),
     imdbId: vine.string().nullable(),
   }),
 });
