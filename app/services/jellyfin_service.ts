@@ -32,10 +32,11 @@ export class JellyfinService {
 
   async getAllUsersFavoriteMedias() {
     const users = await User.all();
-    const favMeds = new Set<string>();
+    const movieFavs = new Set<string>();
+    const tvFavs = new Set<string>();
 
     for (const user of users) {
-      const favoriteMediasInLibrary = await jellyfinApiClient
+      const favoriteMedias = await jellyfinApiClient
         .get(`Users/${user.jellyfinId}/Items`, {
           searchParams: {
             Filters: "IsFavorite",
@@ -48,16 +49,22 @@ export class JellyfinService {
         .then(jellyfinMediaValidator.validate);
 
       logger.info(
-        `Found ${favoriteMediasInLibrary.length} favorite medias for user ${user.username}.`,
+        `Found ${favoriteMedias.length} favorite medias for user ${user.username}.`,
       );
-      for (const media of favoriteMediasInLibrary) {
+      for (const media of favoriteMedias) {
         if (media.ProviderIds.Tmdb) {
-          favMeds.add(media.ProviderIds.Tmdb);
+          movieFavs.add(media.ProviderIds.Tmdb);
+        }
+        if (media.ProviderIds.Tvdb) {
+          tvFavs.add(media.ProviderIds.Tvdb);
         }
       }
     }
-    logger.info(JSON.stringify(favMeds.values().toArray()));
-    return favMeds;
+
+    return {
+      movies: movieFavs,
+      tvshows: tvFavs,
+    };
   }
 
   async getCurrentlyPlayingMediaIds(): Promise<Set<string>> {

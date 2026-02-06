@@ -6,7 +6,6 @@ import string from "@poppinss/utils/string";
 import { DateTime } from "luxon";
 import Library, { LibraryType } from "#models/library";
 import MediaQueue from "#models/media_queue";
-import User from "#models/user";
 // biome-ignore lint/style/useImportType: Need the actual class for DI purposes
 import { JellyfinService } from "#services/jellyfin_service";
 // biome-ignore lint/style/useImportType: Need the actual class for DI purposes
@@ -32,7 +31,10 @@ export default class VerifyMedia extends BaseCommand {
 
   private libraries: Library[] = [];
   // private users: User[] = [];
-  private favoriteMedias: Set<string> = new Set();
+  private favoriteMedias: { movies: Set<string>; tvshows: Set<string> } = {
+    movies: new Set(),
+    tvshows: new Set(),
+  };
   private readonly MAX_AGE_DAYS = 28;
 
   private startTime: bigint = 0n;
@@ -52,7 +54,7 @@ export default class VerifyMedia extends BaseCommand {
     this.favoriteMedias = await jellyfinService.getAllUsersFavoriteMedias();
 
     logger.info(
-      `Found ${this.favoriteMedias.size} favorite medias in the database.`,
+      `Found ${this.favoriteMedias.movies.size + this.favoriteMedias.tvshows.size} favorite medias in the database.`,
     );
   }
 
@@ -97,7 +99,12 @@ export default class VerifyMedia extends BaseCommand {
         }
 
         // B. Critère VETO (Favoris globaux)
-        if (this.favoriteMedias.has(externalId)) {
+        const favoriteSet =
+          library.type === LibraryType.Movies
+            ? this.favoriteMedias.movies
+            : this.favoriteMedias.tvshows;
+
+        if (favoriteSet.has(externalId)) {
           logger.debug(
             `Media ${media.Name} is protected by a favorite. Skipping…`,
           );

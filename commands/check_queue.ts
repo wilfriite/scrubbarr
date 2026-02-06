@@ -3,6 +3,7 @@ import { BaseCommand } from "@adonisjs/core/ace";
 import logger from "@adonisjs/core/services/logger";
 import type { CommandOptions } from "@adonisjs/core/types/ace";
 import { DateTime } from "luxon";
+import { LibraryType } from "#models/library";
 import MediaHistoryRecord from "#models/media_history_record";
 import MediaQueue from "#models/media_queue";
 // biome-ignore lint/style/useImportType: Need the actual class for DI purposes
@@ -28,12 +29,13 @@ export default class CheckQueue extends BaseCommand {
   };
 
   private activePlaybackIds: Set<string> = new Set();
-  private favoriteMedias: Set<string> = new Set();
+  private favoriteMedias: { movies: Set<string>; tvshows: Set<string> } = {
+    movies: new Set(),
+    tvshows: new Set(),
+  };
 
   @inject()
   async prepare(jellyfinService: JellyfinService) {
-    // this.activePlaybackIds =
-    //   await jellyfinService.getCurrentlyPlayingMediaIds();
     const [activePlaybackIds, favoriteMedias] = await Promise.all([
       jellyfinService.getCurrentlyPlayingMediaIds(),
       jellyfinService.getAllUsersFavoriteMedias(),
@@ -43,7 +45,7 @@ export default class CheckQueue extends BaseCommand {
     this.favoriteMedias = favoriteMedias;
 
     logger.info(
-      `Found ${this.activePlaybackIds.size} active playbacks in Jellyfin.`,
+      `Found ${this.activePlaybackIds.size} active playbacks and ${this.favoriteMedias.movies.size + this.favoriteMedias.tvshows.size} favorite medias in Jellyfin.`,
     );
   }
 
@@ -57,6 +59,7 @@ export default class CheckQueue extends BaseCommand {
     }
 
     for (const item of queueItems) {
+      // A. Vérification des sessions actives
       if (this.activePlaybackIds.has(item.jellyfinId)) {
         if (item.library.type === "movies") {
           item.deletionPlannedAt = DateTime.now().plus({ week: 1 });
@@ -73,6 +76,18 @@ export default class CheckQueue extends BaseCommand {
         continue;
       }
 
+      // B. Vérification des favoris
+      const favoriteSet =
+        item.library.type === LibraryType.Movies
+          ? this.favoriteMedias.movies
+          : this.favoriteMedias.tvshows;
+
+      if (favoriteSet.has(item.externalId)) {
+        await this.moveToHistory(item, "FAVORITE");
+        continue;
+      }
+
+      // C. Vérification de la stratégie
       const mediaInfo: MediaInfo = {
         id: item.jellyfinId,
         externalId: item.externalId,
@@ -81,26 +96,35 @@ export default class CheckQueue extends BaseCommand {
 
       const result = await mediaCheckStrategy.shouldKeep(mediaInfo);
 
-      if (this.favoriteMedias.has(item.externalId) || result.shouldKeep) {
-        await MediaHistoryRecord.updateOrCreate(
-          { jellyfinId: item.jellyfinId, status: "AUTO_SAVED" },
-          {
-            externalId: item.externalId,
-            name: item.name,
-            type: item.library.type,
-            strategyName: item.strategyName,
-            libraryId: item.libraryId,
-            plannedAt: item.deletionPlannedAt,
-          },
-        );
-
-        await item.delete();
-        logger.info(`[SAVED] ${item.name} moved to history.`);
+      if (result.shouldKeep) {
+        await this.moveToHistory(item, "STRATEGY");
       } else {
         logger.info(
           `[STAY] ${item.name} still scheduled ${item.deletionPlannedAt.toRelative()}`,
         );
       }
     }
+  }
+
+  private async moveToHistory(
+    item: MediaQueue,
+    reason: "FAVORITE" | "STRATEGY",
+  ) {
+    await MediaHistoryRecord.updateOrCreate(
+      { jellyfinId: item.jellyfinId, status: "AUTO_SAVED" },
+      {
+        externalId: item.externalId,
+        name: item.name,
+        type: item.library.type,
+        strategyName: item.strategyName,
+        libraryId: item.libraryId,
+        plannedAt: item.deletionPlannedAt,
+      },
+    );
+
+    await item.delete();
+    logger.info(
+      `[SAVED] ${item.name} moved to history (Reason: ${reason === "FAVORITE" ? "Marked as favorite" : "Strategy verdict"}).`,
+    );
   }
 }
