@@ -40,7 +40,9 @@ export class OnlyRequesterMustSeeStrategy extends MediaCheckStrategy {
     assert(adminUser, "Admin user not found");
 
     const request = this.requests.find(
-      (r) => String(r.media.tmdbId) === String(media.tmdbId),
+      (r) =>
+        String(r.media.tmdbId) === String(media.externalId) ||
+        String(r.media.tvdbId) === String(media.externalId),
     );
 
     const requester = request?.requestedBy.jellyfinUserId

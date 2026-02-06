@@ -4,7 +4,7 @@ import logger from "@adonisjs/core/services/logger";
 import type { CommandOptions } from "@adonisjs/core/types/ace";
 import string from "@poppinss/utils/string";
 import { DateTime } from "luxon";
-import Library from "#models/library";
+import Library, { LibraryType } from "#models/library";
 import MediaQueue from "#models/media_queue";
 import User from "#models/user";
 // biome-ignore lint/style/useImportType: Need the actual class for DI purposes
@@ -31,7 +31,7 @@ export default class VerifyMedia extends BaseCommand {
   };
 
   private libraries: Library[] = [];
-  private users: User[] = [];
+  // private users: User[] = [];
   private favoriteMedias: Set<string> = new Set();
   private readonly MAX_AGE_DAYS = 28;
 
@@ -42,21 +42,14 @@ export default class VerifyMedia extends BaseCommand {
   async prepare(jellyfinService: JellyfinService) {
     this.startTime = process.hrtime.bigint();
     logger.info("Preparing to verify media…");
-    const res = await Promise.all([
-      Library.query().where({ isActive: true }),
-      User.all(),
-    ]);
-    this.libraries = res[0];
-    this.users = res[1];
+    this.libraries = await Library.query().where({ isActive: true });
     logger.info(
-      `Found ${this.libraries.length} ${string.pluralize("library", this.libraries.length)} and ${this.users.length} ${string.pluralize("user", this.users.length)} in the database. Processing to cross-match now…`,
+      `Found ${this.libraries.length} ${string.pluralize("library", this.libraries.length)} in the database. Processing to cross-match now…`,
     );
 
     // Setting up my "favorites" set
     logger.info("Setting up a cross-users 'favorites' set…");
-    this.favoriteMedias = await jellyfinService.getAllUsersFavoriteMedias(
-      this.users,
-    );
+    this.favoriteMedias = await jellyfinService.getAllUsersFavoriteMedias();
 
     logger.info(
       `Found ${this.favoriteMedias.size} favorite medias in the database.`,
@@ -90,15 +83,21 @@ export default class VerifyMedia extends BaseCommand {
       );
 
       for (const media of medias) {
-        // A. Sécurité TMDB
-        const tmdbId = media.ProviderIds.Tmdb;
-        if (!tmdbId) {
-          logger.warn(`Media ${media.Name} has no tmdbId. Skipping…`);
+        // A. Sécurité External ID
+        const externalId =
+          library.type === LibraryType.Movies
+            ? media.ProviderIds.Tmdb
+            : media.ProviderIds.Tvdb;
+
+        if (!externalId) {
+          logger.warn(
+            `Media ${media.Name} has no valid external ID. Skipping…`,
+          );
           continue;
         }
 
         // B. Critère VETO (Favoris globaux)
-        if (this.favoriteMedias.has(tmdbId)) {
+        if (this.favoriteMedias.has(externalId)) {
           logger.debug(
             `Media ${media.Name} is protected by a favorite. Skipping…`,
           );
@@ -118,7 +117,7 @@ export default class VerifyMedia extends BaseCommand {
 
         const { shouldKeep, reason } = await mediaCheckStrategy.shouldKeep({
           id: media.Id,
-          tmdbId: tmdbId,
+          externalId: externalId,
           mediaType: library.type,
         });
 
@@ -127,13 +126,13 @@ export default class VerifyMedia extends BaseCommand {
 
           // On vérifie si le média est DÉJÀ dans la file d'attente (non supprimé)
           const existingInQueue = await MediaQueue.query()
-            .where("tmdbId", tmdbId)
+            .where("externalId", externalId)
             .first();
 
           if (!existingInQueue) {
             // Nouveau média : on crée l'entrée avec le compte à rebours
             await MediaQueue.create({
-              tmdbId: tmdbId,
+              externalId: externalId,
               name: media.Name,
               jellyfinId: media.Id,
               libraryId: library.id,

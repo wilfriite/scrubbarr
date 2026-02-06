@@ -28,11 +28,20 @@ export default class CheckQueue extends BaseCommand {
   };
 
   private activePlaybackIds: Set<string> = new Set();
+  private favoriteMedias: Set<string> = new Set();
 
   @inject()
   async prepare(jellyfinService: JellyfinService) {
-    this.activePlaybackIds =
-      await jellyfinService.getCurrentlyPlayingMediaIds();
+    // this.activePlaybackIds =
+    //   await jellyfinService.getCurrentlyPlayingMediaIds();
+    const [activePlaybackIds, favoriteMedias] = await Promise.all([
+      jellyfinService.getCurrentlyPlayingMediaIds(),
+      jellyfinService.getAllUsersFavoriteMedias(),
+    ]);
+
+    this.activePlaybackIds = activePlaybackIds;
+    this.favoriteMedias = favoriteMedias;
+
     logger.info(
       `Found ${this.activePlaybackIds.size} active playbacks in Jellyfin.`,
     );
@@ -66,28 +75,17 @@ export default class CheckQueue extends BaseCommand {
 
       const mediaInfo: MediaInfo = {
         id: item.jellyfinId,
-        tmdbId: item.tmdbId,
+        externalId: item.externalId,
         mediaType: item.library.type,
       };
 
       const result = await mediaCheckStrategy.shouldKeep(mediaInfo);
 
-      if (result.shouldKeep) {
-        // await MediaHistoryRecord.create({
-        //   jellyfinId: item.jellyfinId,
-        //   tmdbId: item.tmdbId,
-        //   name: item.name,
-        //   type: item.library.type,
-        //   strategyName: item.strategyName,
-        //   status: "AUTO_SAVED",
-        //   libraryId: item.libraryId,
-        //   plannedAt: item.deletionPlannedAt,
-        // })
-
+      if (this.favoriteMedias.has(item.externalId) || result.shouldKeep) {
         await MediaHistoryRecord.updateOrCreate(
           { jellyfinId: item.jellyfinId, status: "AUTO_SAVED" },
           {
-            tmdbId: item.tmdbId,
+            externalId: item.externalId,
             name: item.name,
             type: item.library.type,
             strategyName: item.strategyName,

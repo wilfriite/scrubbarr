@@ -25,8 +25,7 @@ export class EveryoneMustSeeStrategy extends MediaCheckStrategy {
   readonly name = "EVERYONE_MUST_SEE";
 
   async shouldKeep(media: MediaInfo): Promise<MediaCheckResult> {
-    // const users = await User.all();
-    // Si UN SEUL utilisateur n'a pas vu le film, on renvoie false
+    // Si UN SEUL utilisateur n'a pas vu le film, on renvoie true (pour le garder)
     for (const user of this.users) {
       const userData = await this.jellyfinService.getMediaStateForUser(
         media.id,
