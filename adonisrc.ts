@@ -53,6 +53,7 @@ export default defineConfig({
       environment: ["console"],
     },
     () => import("#providers/media_check_strategy_provider"),
+    () => import("#providers/service_provider"),
   ],
 
   /*
