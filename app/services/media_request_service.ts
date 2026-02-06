@@ -22,7 +22,10 @@ export class MediaRequestService {
               filter: "available",
             },
           })
-          .json();
+          .json<{
+            pageInfo: { pages: number; page: number };
+            results: unknown;
+          }>();
 
         totalPages = data.pageInfo.pages;
         logger.info(`Page ${currentPage} of ${totalPages}`);

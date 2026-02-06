@@ -29,18 +29,18 @@ export default class SyncUsers extends BaseCommand {
   };
 
   private jellyfinUsers: JellyfinUser[] = [];
-  private jellyseerrUsers: JellyseerrUser[] = [];
+  private jellyseerrUsers: JellyseerrUser[] = []; // TODO: maybe check on server startup if a jellyseerr instance is available
 
   async prepare() {
     logger.info("Preparing the syncing of users…");
     const res = await Promise.all([
       jellyfinApiClient
         .get("Users")
-        .json()
+        .json<unknown>()
         .then(jellyfinUsersValidator.validate),
       jellyseerrApiClient
         .get("user")
-        .json()
+        .json<{ results: unknown }>()
         .then((d) => jellyseerrUsersValidator.validate(d.results)),
     ]);
     this.jellyfinUsers = res[0];

@@ -27,7 +27,7 @@ export default class SyncLibraries extends BaseCommand {
     logger.info("Preparing the syncing of libraries…");
     this.libraries = await jellyfinApiClient
       .get("Library/VirtualFolders")
-      .json()
+      .json<unknown>()
       .then(jellyfinLibrariesValidator.validate);
     logger.info(
       `Found ${this.libraries.length} libraries in Jellyfin. Processing to cross-match now…`,

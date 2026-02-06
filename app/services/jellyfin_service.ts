@@ -1,5 +1,5 @@
 import logger from "@adonisjs/core/services/logger";
-import type User from "#models/user";
+import User from "#models/user";
 import { jellyfinApiClient } from "#start/api-clients";
 import {
   jellyfinMediaValidator,
@@ -16,7 +16,7 @@ export class JellyfinService {
           parentId: libraryId,
         },
       })
-      .json()
+      .json<{ Items: unknown }>()
       .then((d) => d.Items)
       .then(jellyfinMediaValidator.validate);
   }
@@ -26,11 +26,12 @@ export class JellyfinService {
       .get(`UserItems/${mediaId}/UserData`, {
         searchParams: { userId },
       })
-      .json()
+      .json<unknown>()
       .then(mediaUserDataValidator.validate);
   }
 
-  async getAllUsersFavoriteMedias(users: User[]) {
+  async getAllUsersFavoriteMedias() {
+    const users = await User.all();
     const favMeds = new Set<string>();
 
     for (const user of users) {
@@ -42,7 +43,7 @@ export class JellyfinService {
             Recursive: true,
           },
         })
-        .json()
+        .json<{ Items: unknown }>()
         .then((d) => d.Items)
         .then(jellyfinMediaValidator.validate);
 
@@ -63,7 +64,7 @@ export class JellyfinService {
     try {
       const sessions = await jellyfinApiClient
         .get("Sessions")
-        .json()
+        .json<unknown>()
         .then(jellyfinSessionValidator.validate);
 
       const blockedIds = new Set<string>();
