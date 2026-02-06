@@ -93,7 +93,7 @@ export default class VerifyMedia extends BaseCommand {
 
         if (!externalId) {
           logger.warn(
-            `Media ${media.Name} has no valid external ID. Skipping…`,
+            `[SKIP] Media "${media.Name}" has no valid external ID (TMDB/TVDB). It might not be indexed correctly in Jellyfin.`,
           );
           continue;
         }

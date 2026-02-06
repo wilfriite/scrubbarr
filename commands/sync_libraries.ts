@@ -51,13 +51,17 @@ export default class SyncLibraries extends BaseCommand {
         await found.merge({ name: library.Name }).save();
       } else {
         logger.info(
-          `Library ${library.Name} is not in the database. Creating…`,
+          `[NEW] Library ${library.Name} detected. Adding as INACTIVE…`,
         );
         await Library.create({
           jellyfinId: library.ItemId,
           name: library.Name,
           type: library.CollectionType as "movies" | "tvshows",
+          isActive: false,
         });
+        logger.info(
+          `Library ${library.Name} has been added. You must enable it manually in the database to start scanning it.`,
+        );
       }
     }
   }
