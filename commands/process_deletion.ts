@@ -7,6 +7,8 @@ import { LibraryType } from "#models/library";
 import MediaHistoryRecord from "#models/media_history_record";
 import MediaQueue from "#models/media_queue";
 // biome-ignore lint/style/useImportType: Need the actual class for DI purposes
+import { JellyfinService } from "#services/jellyfin_service";
+// biome-ignore lint/style/useImportType: Need the actual class for DI purposes
 import { RadarrService } from "#services/radarr_service";
 // biome-ignore lint/style/useImportType: Need the actual class for DI purposes
 import { SonarrService } from "#services/sonarr_service";
@@ -22,8 +24,15 @@ export default class ProcessDeletion extends BaseCommand {
   };
 
   @inject()
-  async run(radarrService: RadarrService, sonarrService: SonarrService) {
+  async run(
+    radarrService: RadarrService,
+    sonarrService: SonarrService,
+    jellyfinService: JellyfinService,
+  ) {
     const now = DateTime.now();
+
+    const activePlaybackIds =
+      await jellyfinService.getCurrentlyPlayingMediaIds();
 
     const toDelete = await MediaQueue.query()
       .where("deletionPlannedAt", "<=", now.toSQL())
@@ -37,6 +46,15 @@ export default class ProcessDeletion extends BaseCommand {
     logger.info(`Found ${toDelete.length} medias due to be deleted.`);
 
     for (const item of toDelete) {
+      if (activePlaybackIds.has(item.jellyfinId)) {
+        item.deletionPlannedAt = now.plus({ days: 1 });
+        await item.save();
+        logger.info(
+          `[SKIP] ${item.name} is currently being watched. Postponing for 24h.`,
+        );
+        continue;
+      }
+
       logger.info(
         "================================================================================",
       );
