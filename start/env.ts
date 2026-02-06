@@ -53,4 +53,5 @@ export default await Env.create(new URL("../", import.meta.url), {
     "everyone",
     "requester",
   ] as const),
+  MEDIA_MIN_AGE_DAYS: Env.schema.number.optional(),
 });

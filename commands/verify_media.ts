@@ -35,7 +35,7 @@ export default class VerifyMedia extends BaseCommand {
     movies: new Set(),
     tvshows: new Set(),
   };
-  private readonly MAX_AGE_DAYS = 28;
+  private readonly MAX_AGE_DAYS = env.get("MEDIA_MIN_AGE_DAYS", 28);
 
   private startTime: bigint = 0n;
   private endTime: bigint = 0n;
