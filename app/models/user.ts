@@ -9,7 +9,7 @@ export default class User extends BaseModel {
   declare jellyfinId: string;
 
   @column()
-  declare jellyseerrId: string;
+  declare jellyseerrId: string | null;
 
   @column()
   declare username: string;

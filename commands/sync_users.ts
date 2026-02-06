@@ -72,14 +72,9 @@ export default class SyncUsers extends BaseCommand {
       const jSeerrUser = linkedJellyseerrUsers.find(
         (u) => u.jellyfinUserId && u.jellyfinUserId === jFinUser.Id,
       );
-      if (!jSeerrUser) {
-        logger.warn(
-          `User ${jFinUser.Id} is not linked to Jellyseerr. Skipping…`,
-        );
-        continue;
-      }
+
       logger.debug(JSON.stringify(jFinUser));
-      logger.debug(`Syncing user ${jFinUser.Id} from Jellyfin to Jellyseerr…`);
+      logger.debug(`Syncing user ${jFinUser.Id} from Jellyfin…`);
       const found = await User.findBy({ jellyfinId: jFinUser.Id });
 
       const lastActivityAt = jFinUser.LastActivityDate
@@ -88,7 +83,7 @@ export default class SyncUsers extends BaseCommand {
 
       const data = {
         jellyfinId: jFinUser.Id,
-        jellyseerrId: jSeerrUser.id.toString(),
+        jellyseerrId: jSeerrUser?.id.toString() || null,
         username: jFinUser.Name,
         isAdmin: jFinUser.Policy.IsAdministrator,
         lastActivityAt,
