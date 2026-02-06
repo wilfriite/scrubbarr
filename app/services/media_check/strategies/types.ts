@@ -3,7 +3,7 @@ import type { LibraryType } from "#models/library";
 export type TmdbMediaType = (typeof LibraryType)[keyof typeof LibraryType];
 export type MediaInfo = {
   id: string;
-  tmdbId: string;
+  externalId: string;
   mediaType: TmdbMediaType;
 };
 export type MediaCheckResult = { shouldKeep: boolean; reason: string | null };

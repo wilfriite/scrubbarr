@@ -8,7 +8,7 @@ export default class MediaHistoryRecord extends BaseModel {
   declare id: number;
 
   @column()
-  declare tmdbId: string;
+  declare externalId: string;
 
   @column()
   declare jellyfinId: string;
