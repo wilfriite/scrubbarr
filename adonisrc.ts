@@ -67,6 +67,7 @@ export default defineConfig({
   preloads: [
     () => import("#start/routes"),
     () => import("#start/kernel"),
+    () => import("#start/checks"),
     {
       file: () => import("#start/scheduler"),
       environment: ["console", "web"],
