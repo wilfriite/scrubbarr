@@ -1,5 +1,6 @@
 import logger from "@adonisjs/core/services/logger";
 import { jellyseerrApiClient } from "#start/api-clients";
+import env from "#start/env";
 import {
   type JellyseerrMedia,
   jellyseerrMediasValidator,
@@ -8,6 +9,14 @@ import { type Result, safe } from "../utils/safe.js";
 
 export class MediaRequestService {
   async getAllRequests(): Promise<Result<JellyseerrMedia[]>> {
+    const isJellyseerrConfigured = !!(
+      env.get("JELLYSEERR_URL") && env.get("JELLYSEERR_API_KEY")
+    );
+
+    if (!isJellyseerrConfigured) {
+      return [[], null];
+    }
+
     let mediaRequests: JellyseerrMedia[] = [];
     let currentPage = 1;
     let hasNextPage = true;

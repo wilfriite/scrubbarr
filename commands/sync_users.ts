@@ -4,6 +4,8 @@ import type { CommandOptions } from "@adonisjs/core/types/ace";
 import { DateTime } from "luxon";
 import User from "#models/user";
 import { jellyfinApiClient, jellyseerrApiClient } from "#start/api-clients";
+import env from "#start/env";
+import { safe } from "#utils/safe";
 import {
   type JellyfinUser,
   jellyfinUsersValidator,
@@ -15,12 +17,11 @@ import {
 
 /**
  * This command will sync the users from Jellyfin to the database.
- * It only syncs the users that are linked to Jellyseerr (for now).
  */
 export default class SyncUsers extends BaseCommand {
   static commandName = "sync:users";
   static description =
-    "Get users from Jellyfin, sync them to their Jellyseerr data and save them in the database";
+    "Get users from Jellyfin, sync them to their Jellyseerr data (if available) and save them in the database";
 
   static aliases = ["s:u"];
 
@@ -29,24 +30,47 @@ export default class SyncUsers extends BaseCommand {
   };
 
   private jellyfinUsers: JellyfinUser[] = [];
-  private jellyseerrUsers: JellyseerrUser[] = []; // TODO: maybe check on server startup if a jellyseerr instance is available
+  private jellyseerrUsers: JellyseerrUser[] = [];
 
   async prepare() {
     logger.info("Preparing the syncing of users…");
-    const res = await Promise.all([
+
+    const isJellyseerrConfigured = !!(
+      env.get("JELLYSEERR_URL") && env.get("JELLYSEERR_API_KEY")
+    );
+
+    const [jFinData, jFinErr] = await safe(
       jellyfinApiClient
         .get("Users")
         .json<unknown>()
         .then(jellyfinUsersValidator.validate),
-      jellyseerrApiClient
-        .get("user")
-        .json<{ results: unknown }>()
-        .then((d) => jellyseerrUsersValidator.validate(d.results)),
-    ]);
-    this.jellyfinUsers = res[0];
-    this.jellyseerrUsers = res[1];
+    );
+
+    if (jFinErr) {
+      logger.error(`Failed to fetch Jellyfin users: ${jFinErr.message}`);
+      return;
+    }
+    this.jellyfinUsers = jFinData;
+
+    if (isJellyseerrConfigured) {
+      const [jSeerrData, jSeerrErr] = await safe(
+        jellyseerrApiClient
+          .get("user")
+          .json<{ results: unknown }>()
+          .then((d) => jellyseerrUsersValidator.validate(d.results)),
+      );
+
+      if (jSeerrErr) {
+        logger.warn(
+          `Jellyseerr is configured but unreachable: ${jSeerrErr.message}. Syncing Jellyfin users only.`,
+        );
+      } else {
+        this.jellyseerrUsers = jSeerrData;
+      }
+    }
+
     logger.info(
-      `Found ${this.jellyfinUsers.length} users in Jellyfin and ${this.jellyseerrUsers.length} users in Jellyseerr. Processing to cross-match now…`,
+      `Found ${this.jellyfinUsers.length} users in Jellyfin and ${this.jellyseerrUsers.length} matching users in Jellyseerr.`,
     );
   }
 
@@ -64,17 +88,12 @@ export default class SyncUsers extends BaseCommand {
         },
       ];
     });
-    logger.info(
-      `Found ${linkedJellyseerrUsers.length} users in Jellyseerr that are linked to Jellyfin. Moving onto the syncing…`,
-    );
 
     for (const jFinUser of this.jellyfinUsers) {
       const jSeerrUser = linkedJellyseerrUsers.find(
         (u) => u.jellyfinUserId && u.jellyfinUserId === jFinUser.Id,
       );
 
-      logger.debug(JSON.stringify(jFinUser));
-      logger.debug(`Syncing user ${jFinUser.Id} from Jellyfin…`);
       const found = await User.findBy({ jellyfinId: jFinUser.Id });
 
       const lastActivityAt = jFinUser.LastActivityDate
@@ -88,18 +107,15 @@ export default class SyncUsers extends BaseCommand {
         isAdmin: jFinUser.Policy.IsAdministrator,
         lastActivityAt,
       };
+
       let newUser: User | null = null;
       if (found) {
-        logger.debug(
-          `User ${jFinUser.Id} is already in the database. Updating…`,
-        );
         newUser = await found.merge(data).save();
       } else {
-        logger.debug(`User ${jFinUser.Id} is not in the database. Creating…`);
         newUser = await User.create(data);
       }
 
-      logger.info(`User ${newUser.username} has been synced to Jellyseerr!`);
+      logger.info(`User ${newUser.username} has been synced.`);
     }
   }
 

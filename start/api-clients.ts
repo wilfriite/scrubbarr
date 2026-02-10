@@ -9,9 +9,9 @@ export const jellyfinApiClient = ky.create({
 });
 
 export const jellyseerrApiClient = ky.create({
-  prefixUrl: env.get("JELLYSEERR_URL"),
+  prefixUrl: env.get("JELLYSEERR_URL") || "http://localhost/api/v1",
   headers: {
-    "x-api-key": env.get("JELLYSEERR_API_KEY"),
+    "x-api-key": env.get("JELLYSEERR_API_KEY") || "",
   },
 });
 
