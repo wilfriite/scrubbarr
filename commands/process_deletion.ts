@@ -31,8 +31,13 @@ export default class ProcessDeletion extends BaseCommand {
   ) {
     const now = DateTime.now();
 
-    const activePlaybackIds =
+    const [activePlaybackIds, fetchErr] =
       await jellyfinService.getCurrentlyPlayingMediaIds();
+
+    if (fetchErr) {
+      logger.error(`Failed to fetch active playbacks: ${fetchErr.message}`);
+      return;
+    }
 
     const toDelete = await MediaQueue.query()
       .where("deletionPlannedAt", "<=", now.toSQL())
@@ -65,29 +70,40 @@ export default class ProcessDeletion extends BaseCommand {
         "================================================================================",
       );
 
-      let success = false;
       if (item.library.type === LibraryType.Movies) {
-        success = await radarrService.deleteMovie(Number(item.externalId));
+        const [_, radarrErr] = await radarrService.deleteMovie(
+          Number(item.externalId),
+        );
+        if (radarrErr) {
+          logger.error(
+            `[FAILED] ${item.name} from ${serviceName}: ${radarrErr.message}`,
+          );
+          continue;
+        }
       } else {
-        success = await sonarrService.deleteSeries(Number(item.externalId));
+        const [_, sonarrErr] = await sonarrService.deleteSeries(
+          Number(item.externalId),
+        );
+        if (sonarrErr) {
+          logger.error(
+            `[FAILED] ${item.name} from ${serviceName}: ${sonarrErr.message}`,
+          );
+          continue;
+        }
       }
 
-      if (success) {
-        await MediaHistoryRecord.create({
-          jellyfinId: item.jellyfinId,
-          status: "DELETED",
-          externalId: item.externalId,
-          name: item.name,
-          type: item.library.type,
-          strategyName: item.strategyName,
-          libraryId: item.libraryId,
-          plannedAt: item.deletionPlannedAt,
-        });
-        await item.delete();
-        logger.info(`[DELETED] ${item.name} from ${serviceName}.`);
-      } else {
-        logger.warn(`[FAILED] ${item.name} from ${serviceName}`);
-      }
+      await MediaHistoryRecord.create({
+        jellyfinId: item.jellyfinId,
+        status: "DELETED",
+        externalId: item.externalId,
+        name: item.name,
+        type: item.library.type,
+        strategyName: item.strategyName,
+        libraryId: item.libraryId,
+        plannedAt: item.deletionPlannedAt,
+      });
+      await item.delete();
+      logger.info(`[DELETED] ${item.name} from ${serviceName}.`);
     }
   }
 }

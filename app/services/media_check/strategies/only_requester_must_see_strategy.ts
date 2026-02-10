@@ -53,10 +53,17 @@ export class OnlyRequesterMustSeeStrategy extends MediaCheckStrategy {
 
     const targetUserId = requester?.jellyfinId || adminUser.jellyfinId;
 
-    const userData = await this.jellyfinService.getMediaStateForUser(
+    const [userData, err] = await this.jellyfinService.getMediaStateForUser(
       media.id,
       targetUserId,
     );
+
+    if (err) {
+      return {
+        shouldKeep: true,
+        reason: `Could not verify play state for target user: ${err.message}`,
+      };
+    }
 
     const username =
       this.users.find((u) => u.jellyfinId === targetUserId)?.username ||

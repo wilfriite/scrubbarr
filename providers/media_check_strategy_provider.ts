@@ -26,7 +26,13 @@ export default class MediaCheckStrategyProvider {
       );
       // Par défaut : Requester strategy
       const requestService = await resolver.make(MediaRequestService);
-      const requests = await requestService.getAllRequests();
+      const [requests, err] = await requestService.getAllRequests();
+
+      if (err) {
+        throw new Error(
+          `Failed to initialize OnlyRequesterMustSeeStrategy: ${err.message}`,
+        );
+      }
 
       return new OnlyRequesterMustSeeStrategy(jellyfinService, users, requests);
     });

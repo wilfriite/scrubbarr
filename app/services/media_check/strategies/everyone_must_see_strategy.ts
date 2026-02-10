@@ -27,10 +27,17 @@ export class EveryoneMustSeeStrategy extends MediaCheckStrategy {
   async shouldKeep(media: MediaInfo): Promise<MediaCheckResult> {
     // Si UN SEUL utilisateur n'a pas vu le film, on renvoie true (pour le garder)
     for (const user of this.users) {
-      const userData = await this.jellyfinService.getMediaStateForUser(
+      const [userData, err] = await this.jellyfinService.getMediaStateForUser(
         media.id,
         user.jellyfinId,
       );
+
+      if (err) {
+        return {
+          shouldKeep: true,
+          reason: `Could not verify play state for ${user.username}: ${err.message}`,
+        };
+      }
 
       if (!userData.Played)
         return {

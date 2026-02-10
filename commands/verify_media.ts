@@ -80,9 +80,16 @@ export default class VerifyMedia extends BaseCommand {
         "================================================================================",
       );
 
-      const medias = await jellyfinService.getMediasForLibrary(
+      const [medias, fetchErr] = await jellyfinService.getMediasForLibrary(
         library.jellyfinId,
       );
+
+      if (fetchErr) {
+        logger.error(
+          `[ERROR] Failed to fetch medias for library ${library.name}: ${fetchErr.message}`,
+        );
+        continue;
+      }
 
       for (const media of medias) {
         // A. Sécurité External ID

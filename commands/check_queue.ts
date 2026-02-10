@@ -36,12 +36,18 @@ export default class CheckQueue extends BaseCommand {
 
   @inject()
   async prepare(jellyfinService: JellyfinService) {
-    const [activePlaybackIds, favoriteMedias] = await Promise.all([
-      jellyfinService.getCurrentlyPlayingMediaIds(),
-      jellyfinService.getAllUsersFavoriteMedias(),
-    ]);
+    const [[activePlaybackIds, playbackErr], favoriteMedias] =
+      await Promise.all([
+        jellyfinService.getCurrentlyPlayingMediaIds(),
+        jellyfinService.getAllUsersFavoriteMedias(),
+      ]);
 
-    this.activePlaybackIds = activePlaybackIds;
+    if (playbackErr) {
+      logger.error(`Failed to fetch active playbacks: ${playbackErr.message}`);
+    } else {
+      this.activePlaybackIds = activePlaybackIds;
+    }
+
     this.favoriteMedias = favoriteMedias;
 
     logger.info(
