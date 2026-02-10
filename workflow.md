@@ -21,7 +21,7 @@ Before making any decisions, Scrubbarr updates its local knowledge:
 - **Libraries**: Fetches all active libraries from Jellyfin.
   - _Safety Note_: New libraries are added as **Inactive** by default. You must explicitly enable them in the database to allow scanning.
 - **Users**: Fetches **all** users from Jellyfin and attempts to link them to Jellyseerr accounts.
-  - _Note_: Users without a Jellyseerr link are still synced to ensure that "Everyone Must See" strategies remain accurate.
+  - _Optional Jellyseerr_: If Jellyseerr is not configured, Scrubbarr only syncs Jellyfin users. Strategies like "Everyone Must See" will still work perfectly.
 
 ---
 
