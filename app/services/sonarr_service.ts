@@ -1,54 +1,65 @@
 import logger from "@adonisjs/core/services/logger";
 import { sonarrClient } from "#start/api-clients";
-import { sonarrLookupValidator } from "#validators/sonarr";
+import { type SonarrLookup, sonarrLookupValidator } from "#validators/sonarr";
+import { type Result, safe } from "../utils/safe.js";
 
 export class SonarrService {
-  async getSeriesByTvdbId(tvdbId: number) {
-    try {
-      logger.debug(`[Sonarr] Looking up TVDB:${tvdbId}`);
-      const data = await sonarrClient
+  async getSeriesByTvdbId(
+    tvdbId: number,
+  ): Promise<Result<SonarrLookup[number]>> {
+    logger.debug(`[Sonarr] Looking up TVDB:${tvdbId}`);
+
+    const [data, fetchErr] = await safe(
+      sonarrClient
         .get("series/lookup", { searchParams: { term: `tvdb:${tvdbId}` } })
-        .json<unknown>();
-
-      const series = await sonarrLookupValidator.validate(data);
-      return series[0] || null;
-    } catch (error) {
-      logger.error({ error }, `[Sonarr] Lookup failed for TVDB:${tvdbId}`);
-      return null;
-    }
-  }
-
-  async deleteSeries(tvdbId: number): Promise<boolean> {
-    try {
-      const series = await this.getSeriesByTvdbId(tvdbId);
-
-      if (!series?.id) {
-        logger.warn(`[Sonarr] Cannot delete: Series TVDB:${tvdbId} not found.`);
-        return false;
-      }
-
-      // await sonarrClient.delete(`series/${series.id}`, {
-      //   searchParams: {
-      //     deleteFiles: "true",
-      //     addImportListExclusion: "false",
-      //   },
-      // });
-
-      logger.info(`[Sonarr] Successfully deleted "${series.title}"`);
-      return true;
-    } catch (error) {
-      logger.error(
-        { error },
-        `[Sonarr] Failed to execute DELETE for TVDB:${tvdbId}`,
-      );
-      return false;
-    }
-  }
-
-  async isDownloaded(tvdbId: number): Promise<boolean> {
-    const series = await this.getSeriesByTvdbId(tvdbId);
-    return !!(
-      series?.statistics && (series.statistics.episodeFileCount ?? 0) > 0
+        .json<unknown>(),
     );
+
+    if (fetchErr) return [null, fetchErr];
+
+    const [seriesList, validationErr] = await safe(
+      sonarrLookupValidator.validate(data),
+    );
+    if (validationErr) return [null, validationErr];
+
+    const series = seriesList[0] || null;
+    if (!series)
+      return [null, new Error(`Series TVDB:${tvdbId} not found in Sonarr`)];
+
+    return [series, null];
+  }
+
+  async deleteSeries(tvdbId: number): Promise<Result<boolean>> {
+    const [series, lookupErr] = await this.getSeriesByTvdbId(tvdbId);
+
+    if (lookupErr) {
+      return [null, lookupErr];
+    }
+
+    const [_, deleteErr] = await safe(
+      sonarrClient
+        .delete(`series/${series.id}`, {
+          searchParams: {
+            deleteFiles: "true",
+            addImportListExclusion: "false",
+          },
+        })
+        .json(),
+    );
+
+    if (deleteErr) return [null, deleteErr];
+
+    logger.info(`[Sonarr] Successfully deleted "${series.title}"`);
+    return [true, null];
+  }
+
+  async isDownloaded(tvdbId: number): Promise<Result<boolean>> {
+    const [series, lookupErr] = await this.getSeriesByTvdbId(tvdbId);
+    if (lookupErr) return [null, lookupErr];
+
+    return [
+      !!(series.statistics && (series.statistics.episodeFileCount ?? 0) > 0),
+      null,
+    ];
   }
 }

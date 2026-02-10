@@ -4,18 +4,18 @@ import {
   type JellyseerrMedia,
   jellyseerrMediasValidator,
 } from "#validators/jellyseerr_media";
+import { type Result, safe } from "../utils/safe.js";
 
 export class MediaRequestService {
-  async getAllRequests() {
+  async getAllRequests(): Promise<Result<JellyseerrMedia[]>> {
     let mediaRequests: JellyseerrMedia[] = [];
     let currentPage = 1;
     let hasNextPage = true;
     let totalPages = 1;
 
     while (hasNextPage) {
-      try {
-        // On ajoute le paramètre de page à l'URL
-        const data = await jellyseerrApiClient
+      const [data, fetchErr] = await safe(
+        jellyseerrApiClient
           .get("request", {
             searchParams: {
               skip: 10 * (currentPage - 1),
@@ -25,25 +25,33 @@ export class MediaRequestService {
           .json<{
             pageInfo: { pages: number; page: number };
             results: unknown;
-          }>();
+          }>(),
+      );
 
-        totalPages = data.pageInfo.pages;
-        logger.info(`Page ${currentPage} of ${totalPages}`);
+      if (fetchErr) {
+        return [null, fetchErr];
+      }
 
-        const medias = await jellyseerrMediasValidator.validate(data.results);
-        mediaRequests = [...mediaRequests, ...medias];
+      totalPages = data.pageInfo.pages;
+      logger.info(`Page ${currentPage} of ${totalPages}`);
 
-        if (data.pageInfo.page < totalPages) {
-          currentPage++;
-        } else {
-          hasNextPage = false;
-        }
-      } catch (error) {
-        logger.error("Erreur lors de la récupération :", error);
-        hasNextPage = false; // On arrête la boucle en cas d'erreur
+      const [medias, validationErr] = await safe(
+        jellyseerrMediasValidator.validate(data.results),
+      );
+
+      if (validationErr) {
+        return [null, validationErr];
+      }
+
+      mediaRequests = [...mediaRequests, ...medias];
+
+      if (data.pageInfo.page < totalPages) {
+        currentPage++;
+      } else {
+        hasNextPage = false;
       }
     }
 
-    return mediaRequests;
+    return [mediaRequests, null];
   }
 }
