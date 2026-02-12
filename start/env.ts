@@ -54,4 +54,6 @@ export default await Env.create(new URL("../", import.meta.url), {
     "requester",
   ] as const),
   MEDIA_MIN_AGE_DAYS: Env.schema.number.optional(),
+
+  DRY_RUN: Env.schema.boolean.optional(),
 });

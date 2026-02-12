@@ -1,5 +1,6 @@
 import logger from "@adonisjs/core/services/logger";
 import { radarrClient } from "#start/api-clients";
+import env from "#start/env";
 import { type RadarrLookup, radarrLookupValidator } from "#validators/radarr";
 import { type Result, safe } from "../utils/safe.js";
 
@@ -32,6 +33,11 @@ export class RadarrService {
 
     if (lookupErr) {
       return [null, lookupErr];
+    }
+
+    if (env.get("DRY_RUN")) {
+      logger.info(`[Radarr] [DRY RUN] Would have deleted "${movie.title}"`);
+      return [true, null];
     }
 
     const [_, deleteErr] = await safe(

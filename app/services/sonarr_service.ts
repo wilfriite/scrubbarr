@@ -1,5 +1,6 @@
 import logger from "@adonisjs/core/services/logger";
 import { sonarrClient } from "#start/api-clients";
+import env from "#start/env";
 import { type SonarrLookup, sonarrLookupValidator } from "#validators/sonarr";
 import { type Result, safe } from "../utils/safe.js";
 
@@ -34,6 +35,11 @@ export class SonarrService {
 
     if (lookupErr) {
       return [null, lookupErr];
+    }
+
+    if (env.get("DRY_RUN")) {
+      logger.info(`[Sonarr] [DRY RUN] Would have deleted "${series.title}"`);
+      return [true, null];
     }
 
     const [_, deleteErr] = await safe(
