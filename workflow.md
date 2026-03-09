@@ -1,77 +1,55 @@
-# 🔄 Scrubbarr Workflow Documentation
+# Scrubbarr — Workflow
 
-This document describes the end-to-step lifecycle of a media item within the Scrubbarr ecosystem.
+## Overview
 
-## 🏗️ Architecture Overview
+Scrubbarr bridges your media stack to automate cleanup:
 
-Scrubbarr operates as an automated bridge between your media stack:
-
-- **Jellyfin**: Source of truth for libraries, users, favorites, and playback status.
-- **Jellyseerr**: Source for media requests and ownership.
-- **Radarr/Sonarr**: Handlers for physical file management and deletion.
+- **Jellyfin** — source of truth for libraries, users, favorites, and playback
+- **Jellyseerr** — source for media request ownership (optional)
+- **Radarr / Sonarr** — handles physical file deletion
 
 ---
 
-## 🛰️ Phase 1: Synchronization
+## Steps
 
-**Commands**: `node ace sync:users` & `node ace sync:libraries`
+### 1. Sync — `sync:users` & `sync:libraries`
 
-Before making any decisions, Scrubbarr updates its local knowledge:
+Refresh local data from Jellyfin (and Jellyseerr if configured).
+New libraries are added as **inactive** by default — enable them manually in the DB.
 
-- **Libraries**: Fetches all active libraries from Jellyfin.
-  - _Safety Note_: New libraries are added as **Inactive** by default. You must explicitly enable them in the database to allow scanning.
-- **Users**: Fetches **all** users from Jellyfin and attempts to link them to Jellyseerr accounts.
-  - _Optional Jellyseerr_: If Jellyseerr is not configured, Scrubbarr only syncs Jellyfin users. Strategies like "Everyone Must See" will still work perfectly.
+### 2. Verify — `verify:media`
 
----
+Scan active libraries and queue media candidates for deletion. Each item goes through:
 
-## 🔍 Phase 2: Audit & Marking
+1. **Favorites** — skip if any user has favorited it in Jellyfin
+2. **Age** — skip if added less than `MEDIA_MIN_AGE_DAYS` ago (`.env`)
+3. **Manual keep** — skip if a user already manually kept it (history `MANUAL_KEEP`)
+4. **Strategy** — queue it if the active strategy says it hasn't been sufficiently watched:
+   - `everyone_must_see`: every synced user must have played it
+   - `only_requester_must_see`: only the Jellyseerr requester (or admin fallback)
 
-**Command**: `node ace verify:media`
+Items that fail are added to the **deletion queue** with a grace period countdown.
 
-Scrubbarr scans your libraries to identify candidates for deletion. Each media item passes through a series of filters:
+### 3. Check Queue — `check:queue`
 
-1.  **Global Favorites Protection**: If **any** user has marked the item as a favorite on Jellyfin, it is immediately skipped.
-2.  **Age Threshold**: The item must have been on the server for at least `MEDIA_MIN_AGE_DAYS` (configured in `.env`).
-3.  **Strategy Validation**: The active strategy (defined by `MEDIA_CHECK_STRATEGY`) is applied:
-    - **Everyone Must See**: Every synced user must have the "Played" status on Jellyfin.
-    - **Only Requester Must See**: Only the original Jellyseerr requester (or Admin fallback) must have the "Played" status.
+Re-evaluate queued items to allow "pardons":
 
-**Outcome**: If an item fails the strategy, it is placed in the **Media Queue** (The Jail) with a planned deletion date based on the library's grace period.
+- **Active playback** — postpone deletion (1 week for movies, 1 month for shows)
+- **New favorite** — remove from queue, archive as `AUTO_SAVED`
+- **Strategy now passes** — remove from queue, archive as `AUTO_SAVED`
 
----
+### 4. Process — `process:deletion`
 
-## ⚖️ Phase 3: The Grace Period (Queue Check)
+Execute deletions for items whose grace period has expired:
 
-**Command**: `node ace check:queue`
-
-Items in the queue are re-evaluated regularly to allow for "pardons":
-
-- **Active Playback**: If the item is currently being watched, the deletion date is postponed.
-- **New Favorites**: If a user marks a queued item as a favorite, it is immediately removed from the queue and moved to history as `AUTO_SAVED`.
-- **Strategy Re-evaluation**: If the conditions of the strategy are now met (e.g., the last person finally watched the movie), the item is saved.
+1. Final real-time playback check — postpone 24h if someone is watching
+2. Delete via **Radarr** (movies, TMDB ID) or **Sonarr** (shows, TVDB ID)
+3. Archive as `DELETED` in history, remove from queue
 
 ---
 
-## 💀 Phase 4: Final Deletion (The Process)
+## Suggested Schedule
 
-**Command**: `node ace process:deletion`
-
-When the grace period expires, Scrubbarr executes the final step:
-
-1.  **Ultimate Safety Check**: A final real-time check is performed on Jellyfin. If someone is watching the media at the exact moment of execution, the deletion is postponed by 24 hours.
-2.  **API Execution**: Scrubbarr sends a `DELETE` command to the appropriate service:
-    - **Radarr**: For items in "movies" libraries (using TMDB ID).
-    - **Sonarr**: For items in "tvshows" libraries (using TVDB ID).
-3.  **Archiving**: The record is removed from the Queue and a permanent `DELETED` entry is created in the **Media History**.
-
----
-
-## ⏰ Suggested Automation Order
-
-To ensure a smooth workflow, tasks should be scheduled in this sequence:
-
-1. `sync:users` / `sync:libraries` (Refresh data)
-2. `verify:media` (Identify new candidates)
-3. `check:queue` (Re-verify pending candidates)
-4. `process:deletion` (Execute confirmed deletions)
+```
+sync:users / sync:libraries  →  verify:media  →  check:queue  →  process:deletion
+```

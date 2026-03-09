@@ -51,6 +51,13 @@ export default class ProcessDeletion extends BaseCommand {
     logger.info(`Found ${toDelete.length} medias due to be deleted.`);
 
     for (const item of toDelete) {
+      if (!item.library) {
+        logger.warn(
+          `[SKIP] ${item.name} has no associated library (it may have been deleted). Skipping.`,
+        );
+        continue;
+      }
+
       if (activePlaybackIds.has(item.jellyfinId)) {
         item.deletionPlannedAt = now.plus({ days: 1 });
         await item.save();

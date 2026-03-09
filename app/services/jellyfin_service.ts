@@ -16,25 +16,40 @@ export class JellyfinService {
   async getMediasForLibrary(
     libraryId: string,
   ): Promise<Result<JellyfinMedia[]>> {
-    const [data, fetchErr] = await safe(
-      this.jellyfinApiClient
-        .get(`Items`, {
-          searchParams: {
-            fields: "ProviderIds,UserData,DateCreated",
-            parentId: libraryId,
-          },
-        })
-        .json<{ Items: unknown }>(),
-    );
+    const PAGE_SIZE = 500;
+    let startIndex = 0;
+    let totalRecordCount = Number.POSITIVE_INFINITY;
+    const allMedias: JellyfinMedia[] = [];
 
-    if (fetchErr) return [null, fetchErr];
+    while (startIndex < totalRecordCount) {
+      const [data, fetchErr] = await safe(
+        this.jellyfinApiClient
+          .get(`Items`, {
+            searchParams: {
+              fields: "ProviderIds,UserData,DateCreated",
+              parentId: libraryId,
+              limit: PAGE_SIZE,
+              startIndex,
+            },
+          })
+          .json<{ Items: unknown; TotalRecordCount: number }>(),
+      );
 
-    const [medias, validationErr] = await safe(
-      jellyfinMediaValidator.validate(data.Items),
-    );
-    if (validationErr) return [null, validationErr];
+      if (fetchErr) return [null, fetchErr];
 
-    return [medias, null];
+      const [medias, validationErr] = await safe(
+        jellyfinMediaValidator.validate(data.Items),
+      );
+      if (validationErr) return [null, validationErr];
+
+      allMedias.push(...medias);
+      totalRecordCount = data.TotalRecordCount;
+      startIndex += medias.length;
+
+      if (medias.length === 0) break;
+    }
+
+    return [allMedias, null];
   }
 
   async getMediaStateForUser(
@@ -59,7 +74,9 @@ export class JellyfinService {
     return [userData, null];
   }
 
-  async getAllUsersFavoriteMedias() {
+  async getAllUsersFavoriteMedias(): Promise<
+    Result<{ movies: Set<string>; tvshows: Set<string> }>
+  > {
     const users = await User.all();
     const movieFavs = new Set<string>();
     const tvFavs = new Set<string>();
@@ -78,22 +95,24 @@ export class JellyfinService {
       );
 
       if (fetchErr) {
-        logger.error(
-          { err: fetchErr },
-          `Failed to fetch favorites for user ${user.username}`,
-        );
-        continue;
+        return [
+          null,
+          new Error(
+            `Failed to fetch favorites for user ${user.username}: ${fetchErr.message}`,
+          ),
+        ];
       }
 
       const [favoriteMedias, validationErr] = await safe(
         jellyfinMediaValidator.validate(data.Items),
       );
       if (validationErr) {
-        logger.error(
-          { err: validationErr },
-          `Failed to validate favorites for user ${user.username}`,
-        );
-        continue;
+        return [
+          null,
+          new Error(
+            `Failed to validate favorites for user ${user.username}: ${validationErr.message}`,
+          ),
+        ];
       }
 
       logger.info(
@@ -109,10 +128,7 @@ export class JellyfinService {
       }
     }
 
-    return {
-      movies: movieFavs,
-      tvshows: tvFavs,
-    };
+    return [{ movies: movieFavs, tvshows: tvFavs }, null];
   }
 
   async getCurrentlyPlayingMediaIds(): Promise<Result<Set<string>>> {

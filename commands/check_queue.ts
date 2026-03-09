@@ -36,7 +36,7 @@ export default class CheckQueue extends BaseCommand {
 
   @inject()
   async prepare(jellyfinService: JellyfinService) {
-    const [[activePlaybackIds, playbackErr], favoriteMedias] =
+    const [[activePlaybackIds, playbackErr], [favoriteMedias, favoritesErr]] =
       await Promise.all([
         jellyfinService.getCurrentlyPlayingMediaIds(),
         jellyfinService.getAllUsersFavoriteMedias(),
@@ -46,6 +46,13 @@ export default class CheckQueue extends BaseCommand {
       logger.error(`Failed to fetch active playbacks: ${playbackErr.message}`);
     } else {
       this.activePlaybackIds = activePlaybackIds;
+    }
+
+    if (favoritesErr) {
+      logger.error(
+        `[ABORT] Failed to fetch favorites: ${favoritesErr.message}. Aborting to prevent accidental deletion of favorited media.`,
+      );
+      return;
     }
 
     this.favoriteMedias = favoriteMedias;
@@ -65,6 +72,13 @@ export default class CheckQueue extends BaseCommand {
     }
 
     for (const item of queueItems) {
+      if (!item.library) {
+        logger.warn(
+          `[SKIP] ${item.name} has no associated library (it may have been deleted). Skipping.`,
+        );
+        continue;
+      }
+
       // A. Vérification des sessions actives
       if (this.activePlaybackIds.has(item.jellyfinId)) {
         if (item.library.type === "movies") {

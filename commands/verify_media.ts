@@ -5,6 +5,9 @@ import type { CommandOptions } from "@adonisjs/core/types/ace";
 import string from "@poppinss/utils/string";
 import { DateTime } from "luxon";
 import Library, { LibraryType } from "#models/library";
+import MediaHistoryRecord, {
+  MediaHistoryRecordStatus,
+} from "#models/media_history_record";
 import MediaQueue from "#models/media_queue";
 // biome-ignore lint/style/useImportType: Need the actual class for DI purposes
 import { JellyfinService } from "#services/jellyfin_service";
@@ -51,7 +54,17 @@ export default class VerifyMedia extends BaseCommand {
 
     // Setting up my "favorites" set
     logger.info("Setting up a cross-users 'favorites' set…");
-    this.favoriteMedias = await jellyfinService.getAllUsersFavoriteMedias();
+    const [favoriteMedias, favoritesErr] =
+      await jellyfinService.getAllUsersFavoriteMedias();
+
+    if (favoritesErr) {
+      logger.error(
+        `[ABORT] Failed to fetch favorites: ${favoritesErr.message}. Aborting to prevent accidental deletion of favorited media.`,
+      );
+      return;
+    }
+
+    this.favoriteMedias = favoriteMedias;
 
     logger.info(
       `Found ${this.favoriteMedias.movies.size + this.favoriteMedias.tvshows.size} favorite medias in the database.`,
@@ -63,6 +76,7 @@ export default class VerifyMedia extends BaseCommand {
     jellyfinService: JellyfinService,
     mediaCheckStrategy: MediaCheckStrategy,
   ) {
+    let processedCount = 0;
     let markedCount = 0;
     let alreadyMarkedCount = 0;
     logger.info(
@@ -91,6 +105,7 @@ export default class VerifyMedia extends BaseCommand {
         continue;
       }
 
+      processedCount += medias.length;
       for (const media of medias) {
         // A. Sécurité External ID
         const externalId =
@@ -143,6 +158,18 @@ export default class VerifyMedia extends BaseCommand {
             .where("externalId", externalId)
             .first();
 
+          const manuallySaved = await MediaHistoryRecord.query()
+            .where("externalId", externalId)
+            .where("status", MediaHistoryRecordStatus.MANUAL_KEEP)
+            .first();
+
+          if (manuallySaved) {
+            logger.debug(
+              `[SKIP] ${media.Name} was manually kept by a user. Skipping.`,
+            );
+            continue;
+          }
+
           if (!existingInQueue) {
             // Nouveau média : on crée l'entrée avec le compte à rebours
             await MediaQueue.create({
@@ -173,7 +200,7 @@ export default class VerifyMedia extends BaseCommand {
     }
 
     logger.info(
-      `Done! ${markedCount} new medias added to the deletion queue. ${alreadyMarkedCount} medias already in the queue.`,
+      `Done! ${processedCount} medias processed. ${markedCount} newly queued for deletion, ${alreadyMarkedCount} already in the queue.`,
     );
   }
 
