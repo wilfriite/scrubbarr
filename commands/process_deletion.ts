@@ -12,6 +12,7 @@ import { JellyfinService } from "#services/jellyfin_service";
 import { RadarrService } from "#services/radarr_service";
 // biome-ignore lint/style/useImportType: Need the actual class for DI purposes
 import { SonarrService } from "#services/sonarr_service";
+import { getPostponedDate, getPostponedLabel } from "#utils/postpone";
 
 export default class ProcessDeletion extends BaseCommand {
   static commandName = "process:deletion";
@@ -59,10 +60,11 @@ export default class ProcessDeletion extends BaseCommand {
       }
 
       if (activePlaybackIds.has(item.jellyfinId)) {
-        item.deletionPlannedAt = now.plus({ days: 1 });
+        item.deletionPlannedAt = getPostponedDate(item.library.type, now);
+        item.postponeCount += 1;
         await item.save();
         logger.info(
-          `[SKIP] ${item.name} is currently being watched. Postponing for 24h.`,
+          `[SKIP] ${item.name} is currently being watched. Postponing for ${getPostponedLabel(item.library.type)}.`,
         );
         continue;
       }

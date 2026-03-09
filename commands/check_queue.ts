@@ -2,7 +2,7 @@ import { inject } from "@adonisjs/core";
 import { BaseCommand } from "@adonisjs/core/ace";
 import logger from "@adonisjs/core/services/logger";
 import type { CommandOptions } from "@adonisjs/core/types/ace";
-import { DateTime } from "luxon";
+import db from "@adonisjs/lucid/services/db";
 import { LibraryType } from "#models/library";
 import MediaHistoryRecord from "#models/media_history_record";
 import MediaQueue from "#models/media_queue";
@@ -13,6 +13,7 @@ import {
   MediaCheckStrategy,
   type MediaInfo,
 } from "#services/media_check/strategies/types";
+import { getPostponedDate, getPostponedLabel } from "#utils/postpone";
 
 /**
  * This command will check if the medias in the queue still need to be deleted.
@@ -81,18 +82,12 @@ export default class CheckQueue extends BaseCommand {
 
       // A. Vérification des sessions actives
       if (this.activePlaybackIds.has(item.jellyfinId)) {
-        if (item.library.type === "movies") {
-          item.deletionPlannedAt = DateTime.now().plus({ week: 1 });
-          logger.info(
-            `[SKIP] ${item.name} is currently being watched. Postponing the deletion for 1 week.`,
-          );
-        } else {
-          item.deletionPlannedAt = DateTime.now().plus({ month: 1 });
-          logger.info(
-            `[SKIP] ${item.name} is currently being watched. Postponing the deletion for 1 month.`,
-          );
-        }
+        item.deletionPlannedAt = getPostponedDate(item.library.type);
+        item.postponeCount += 1;
         await item.save();
+        logger.info(
+          `[SKIP] ${item.name} is currently being watched. Postponing the deletion for ${getPostponedLabel(item.library.type)}.`,
+        );
         continue;
       }
 
