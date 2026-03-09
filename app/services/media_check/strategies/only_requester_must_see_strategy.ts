@@ -1,3 +1,4 @@
+import logger from "@adonisjs/core/services/logger";
 import { assert } from "@poppinss/utils/assert";
 import type User from "#models/user";
 import type { JellyfinService } from "#services/jellyfin_service";
@@ -50,6 +51,12 @@ export class OnlyRequesterMustSeeStrategy extends MediaCheckStrategy {
           (u) => u.jellyfinId === request.requestedBy.jellyfinUserId,
         ) // don't use request.requestedBy.jellyfinUserId in case it's not set or obsolete
       : null;
+
+    if (!requester) {
+      logger.warn(
+        `[OnlyRequesterMustSee] No Jellyseerr requester found for media ${media.id} — falling back to admin (${adminUser.username}).`,
+      );
+    }
 
     const targetUserId = requester?.jellyfinId || adminUser.jellyfinId;
 
