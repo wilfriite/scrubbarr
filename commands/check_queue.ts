@@ -125,19 +125,22 @@ export default class CheckQueue extends BaseCommand {
     item: MediaQueue,
     reason: "FAVORITE" | "STRATEGY",
   ) {
-    await MediaHistoryRecord.updateOrCreate(
-      { jellyfinId: item.jellyfinId, status: "AUTO_SAVED" },
-      {
-        externalId: item.externalId,
-        name: item.name,
-        type: item.library.type,
-        strategyName: item.strategyName,
-        libraryId: item.libraryId,
-        plannedAt: item.deletionPlannedAt,
-      },
-    );
+    await db.transaction(async (trx) => {
+      await MediaHistoryRecord.updateOrCreate(
+        { jellyfinId: item.jellyfinId, status: "AUTO_SAVED" },
+        {
+          externalId: item.externalId,
+          name: item.name,
+          type: item.library.type,
+          strategyName: item.strategyName,
+          libraryId: item.libraryId,
+          plannedAt: item.deletionPlannedAt,
+        },
+        { client: trx },
+      );
 
-    await item.delete();
+      await item.useTransaction(trx).delete();
+    });
     logger.info(
       `[SAVED] ${item.name} moved to history (Reason: ${reason === "FAVORITE" ? "Marked as favorite" : "Strategy verdict"}).`,
     );
