@@ -31,6 +31,6 @@ export default class MediaQueue extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime;
 
-  @column.date()
+  @column.dateTime()
   declare deletionPlannedAt: DateTime;
 }
