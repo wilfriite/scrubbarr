@@ -23,11 +23,21 @@ export class SonarrService {
     );
     if (validationErr) return [null, validationErr];
 
-    const series = seriesList[0] || null;
-    if (!series)
+    const inLibrary = seriesList.filter((s) => s.id !== undefined);
+
+    if (inLibrary.length === 0)
       return [null, new Error(`Series TVDB:${tvdbId} not found in Sonarr`)];
 
-    return [series, null];
+    if (inLibrary.length > 1) {
+      return [
+        null,
+        new Error(
+          `Multiple series found in Sonarr for TVDB:${tvdbId} (${inLibrary.map((s) => `"${s.title}"`).join(", ")}). Skipping to avoid deleting the wrong file.`,
+        ),
+      ];
+    }
+
+    return [inLibrary[0], null];
   }
 
   async deleteSeries(tvdbId: number): Promise<Result<boolean>> {

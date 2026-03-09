@@ -21,11 +21,19 @@ export class RadarrService {
     );
     if (validationErr) return [null, validationErr];
 
-    const movie = movies[0] || null;
-    if (!movie)
+    if (movies.length === 0)
       return [null, new Error(`Movie TMDB:${tmdbId} not found in Radarr`)];
 
-    return [movie, null];
+    if (movies.length > 1) {
+      return [
+        null,
+        new Error(
+          `Multiple movies found in Radarr for TMDB:${tmdbId} (${movies.map((m) => `"${m.title}"`).join(", ")}). Skipping to avoid deleting the wrong file.`,
+        ),
+      ];
+    }
+
+    return [movies[0], null];
   }
 
   async deleteMovie(tmdbId: number): Promise<Result<boolean>> {
