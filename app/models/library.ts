@@ -1,4 +1,4 @@
-import { BaseModel, column } from "@adonisjs/lucid/orm";
+import { BaseModel, beforeSave, column } from "@adonisjs/lucid/orm";
 import type { DateTime } from "luxon";
 
 export default class Library extends BaseModel {
@@ -25,9 +25,20 @@ export default class Library extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime;
+
+  @beforeSave()
+  static validateGracePeriod(library: Library) {
+    if (library.gracePeriodDays < 0) {
+      throw new Error(
+        `gracePeriodDays must be non-negative, got ${library.gracePeriodDays}`,
+      );
+    }
+  }
 }
 
 export const LibraryType = {
   Movies: "movies",
   TvShows: "tvshows",
 } as const;
+
+export type LibraryTypeType = (typeof LibraryType)[keyof typeof LibraryType];
