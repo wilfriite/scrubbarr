@@ -33,4 +33,7 @@ export default class MediaQueue extends BaseModel {
 
   @column.dateTime()
   declare deletionPlannedAt: DateTime;
+
+  @column()
+  declare postponeCount: number;
 }
