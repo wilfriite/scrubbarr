@@ -48,7 +48,12 @@ export default class SyncLibraries extends BaseCommand {
         logger.info(
           `Library ${library.Name} is already in the database. Updating…`,
         );
-        await found.merge({ name: library.Name }).save();
+        await found
+          .merge({
+            name: library.Name,
+            type: library.CollectionType as "movies" | "tvshows",
+          })
+          .save();
       } else {
         logger.info(
           `[NEW] Library ${library.Name} detected. Adding as INACTIVE…`,
